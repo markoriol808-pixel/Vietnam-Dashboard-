@@ -1,128 +1,645 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vietnam Economic Decision Dashboard: Strategic Analysis</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-    <style>
-        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+import { useState, useMemo, useCallback } from "react";
+import {
+  LineChart, Line, BarChart, Bar, ComposedChart,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, ReferenceLine, Area, AreaChart
+} from "recharts";
 
-    <script type="text/babel">
-        const { useState, useMemo } = React;
-        const { 
-            LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-            Tooltip, Legend, ResponsiveContainer, Cell 
-        } = Recharts;
+// ═══════════════════════════════════════════════════════════
+// UNIFIED DATA ARRAY — Single source of truth
+// Every row = one Year × Sector × Region observation
+// Sources: NSO Vietnam 2026, IMF WEO, Penn Wharton/USITC,
+//          Vietnam Briefing 2025, CBRE/Savills Industrial 2024
+// ═══════════════════════════════════════════════════════════
+const RAW_DATA = [
+  // ── 2021 ──────────────────────────────────────────────
+  { Year:2021,Sector:"Manufacturing",  Region:"Northern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:6.1,FDI_Registered:8.9,Credit_to_GDP:124,Export_Value:38.2,GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Electronics",    Region:"Northern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:5.2,FDI_Registered:7.8,Credit_to_GDP:124,Export_Value:52.1,GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Agriculture",    Region:"Southern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:0.8,FDI_Registered:1.1,Credit_to_GDP:124,Export_Value:13.2,GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Retail",         Region:"Southern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:1.2,FDI_Registered:1.8,Credit_to_GDP:124,Export_Value:4.1, GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Logistics",      Region:"Central", GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:1.4,FDI_Registered:2.0,Credit_to_GDP:124,Export_Value:6.8, GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Textiles",       Region:"Southern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:1.8,FDI_Registered:2.6,Credit_to_GDP:124,Export_Value:28.5,GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Real Estate",    Region:"Southern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:1.5,FDI_Registered:2.2,Credit_to_GDP:124,Export_Value:0.4, GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Construction",   Region:"Northern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:0.6,FDI_Registered:0.9,Credit_to_GDP:124,Export_Value:0.2, GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Financial Svcs", Region:"Southern",GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:0.8,FDI_Registered:1.0,Credit_to_GDP:124,Export_Value:1.2, GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  { Year:2021,Sector:"Tourism",        Region:"Central", GDP_Growth:2.58,Inflation:1.84,FDI_Disbursed:0.4,FDI_Registered:0.6,Credit_to_GDP:124,Export_Value:0.9, GDP_Value:363,GDP_Per_Capita:2985,Tariff_ETR:4.5,isForecast:false },
+  // ── 2022 ──────────────────────────────────────────────
+  { Year:2022,Sector:"Manufacturing",  Region:"Northern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:6.8,FDI_Registered:8.4,Credit_to_GDP:126,Export_Value:44.1,GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Electronics",    Region:"Northern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:6.0,FDI_Registered:8.0,Credit_to_GDP:126,Export_Value:60.2,GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Agriculture",    Region:"Southern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:0.9,FDI_Registered:1.2,Credit_to_GDP:126,Export_Value:15.5,GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Retail",         Region:"Southern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:1.4,FDI_Registered:2.0,Credit_to_GDP:126,Export_Value:4.8, GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Logistics",      Region:"Central", GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:1.6,FDI_Registered:2.2,Credit_to_GDP:126,Export_Value:7.9, GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Textiles",       Region:"Southern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:2.0,FDI_Registered:2.9,Credit_to_GDP:126,Export_Value:32.1,GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Real Estate",    Region:"Southern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:1.7,FDI_Registered:2.5,Credit_to_GDP:126,Export_Value:0.5, GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Construction",   Region:"Northern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:0.7,FDI_Registered:1.0,Credit_to_GDP:126,Export_Value:0.3, GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Financial Svcs", Region:"Southern",GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:0.9,FDI_Registered:1.1,Credit_to_GDP:126,Export_Value:1.4, GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  { Year:2022,Sector:"Tourism",        Region:"Central", GDP_Growth:8.12,Inflation:3.15,FDI_Disbursed:0.4,FDI_Registered:0.6,Credit_to_GDP:126,Export_Value:1.2, GDP_Value:408,GDP_Per_Capita:3560,Tariff_ETR:4.9,isForecast:false },
+  // ── 2023 ──────────────────────────────────────────────
+  { Year:2023,Sector:"Manufacturing",  Region:"Northern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:6.4,FDI_Registered:9.6,Credit_to_GDP:128,Export_Value:41.2,GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Electronics",    Region:"Northern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:5.5,FDI_Registered:8.8,Credit_to_GDP:128,Export_Value:57.8,GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Agriculture",    Region:"Southern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:0.9,FDI_Registered:1.3,Credit_to_GDP:128,Export_Value:14.8,GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Retail",         Region:"Southern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:1.3,FDI_Registered:1.9,Credit_to_GDP:128,Export_Value:4.5, GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Logistics",      Region:"Central", GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:1.5,FDI_Registered:2.1,Credit_to_GDP:128,Export_Value:7.4, GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Textiles",       Region:"Southern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:1.9,FDI_Registered:2.8,Credit_to_GDP:128,Export_Value:30.4,GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Real Estate",    Region:"Southern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:1.6,FDI_Registered:2.3,Credit_to_GDP:128,Export_Value:0.4, GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Construction",   Region:"Northern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:0.7,FDI_Registered:1.0,Credit_to_GDP:128,Export_Value:0.2, GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Financial Svcs", Region:"Southern",GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:0.8,FDI_Registered:1.0,Credit_to_GDP:128,Export_Value:1.3, GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  { Year:2023,Sector:"Tourism",        Region:"Central", GDP_Growth:5.05,Inflation:3.25,FDI_Disbursed:0.6,FDI_Registered:0.8,Credit_to_GDP:128,Export_Value:1.8, GDP_Value:433,GDP_Per_Capita:4080,Tariff_ETR:4.8,isForecast:false },
+  // ── 2024 ──────────────────────────────────────────────
+  { Year:2024,Sector:"Manufacturing",  Region:"Northern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:6.9,FDI_Registered:10.2,Credit_to_GDP:130,Export_Value:45.8,GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Electronics",    Region:"Northern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:6.2,FDI_Registered:9.5, Credit_to_GDP:130,Export_Value:64.1,GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Agriculture",    Region:"Southern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:1.0,FDI_Registered:1.4, Credit_to_GDP:130,Export_Value:15.9,GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Retail",         Region:"Southern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:1.4,FDI_Registered:2.1, Credit_to_GDP:130,Export_Value:5.0, GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Logistics",      Region:"Central", GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:1.7,FDI_Registered:2.4, Credit_to_GDP:130,Export_Value:8.2, GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Textiles",       Region:"Southern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:2.1,FDI_Registered:3.1, Credit_to_GDP:130,Export_Value:33.8,GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Real Estate",    Region:"Southern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:1.8,FDI_Registered:2.6, Credit_to_GDP:130,Export_Value:0.5, GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Construction",   Region:"Northern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:0.8,FDI_Registered:1.1, Credit_to_GDP:130,Export_Value:0.3, GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Financial Svcs", Region:"Southern",GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:0.9,FDI_Registered:1.1, Credit_to_GDP:130,Export_Value:1.5, GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  { Year:2024,Sector:"Tourism",        Region:"Central", GDP_Growth:7.09,Inflation:3.63,FDI_Disbursed:0.7,FDI_Registered:0.9, Credit_to_GDP:130,Export_Value:2.2, GDP_Value:476,GDP_Per_Capita:4700,Tariff_ETR:5.1,isForecast:false },
+  // ── 2025 (NSO CONFIRMED) ──────────────────────────────
+  { Year:2025,Sector:"Manufacturing",  Region:"Northern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:7.2,FDI_Registered:10.8,Credit_to_GDP:130,Export_Value:49.5,GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Electronics",    Region:"Northern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:6.5,FDI_Registered:10.0,Credit_to_GDP:130,Export_Value:70.2,GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Agriculture",    Region:"Southern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:1.1,FDI_Registered:1.5, Credit_to_GDP:130,Export_Value:17.1,GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Retail",         Region:"Southern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:1.5,FDI_Registered:2.2, Credit_to_GDP:130,Export_Value:5.5, GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Logistics",      Region:"Central", GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:1.8,FDI_Registered:2.6, Credit_to_GDP:130,Export_Value:8.8, GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Textiles",       Region:"Southern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:2.2,FDI_Registered:3.3, Credit_to_GDP:130,Export_Value:36.5,GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Real Estate",    Region:"Southern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:1.9,FDI_Registered:2.8, Credit_to_GDP:130,Export_Value:0.5, GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Construction",   Region:"Northern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:0.9,FDI_Registered:1.3, Credit_to_GDP:130,Export_Value:0.3, GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Financial Svcs", Region:"Southern",GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:1.0,FDI_Registered:1.2, Credit_to_GDP:130,Export_Value:1.6, GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  { Year:2025,Sector:"Tourism",        Region:"Central", GDP_Growth:8.02,Inflation:3.31,FDI_Disbursed:0.8,FDI_Registered:1.0, Credit_to_GDP:130,Export_Value:2.8, GDP_Value:514,GDP_Per_Capita:5026,Tariff_ETR:20.0,isForecast:false },
+  // ── 2026 (IMF FORECAST) ───────────────────────────────
+  { Year:2026,Sector:"Manufacturing",  Region:"Northern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:7.4,FDI_Registered:11.0,Credit_to_GDP:133,Export_Value:51.2,GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Electronics",    Region:"Northern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:6.6,FDI_Registered:10.2,Credit_to_GDP:133,Export_Value:72.5,GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Agriculture",    Region:"Southern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:1.1,FDI_Registered:1.6, Credit_to_GDP:133,Export_Value:17.8,GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Retail",         Region:"Southern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:1.5,FDI_Registered:2.3, Credit_to_GDP:133,Export_Value:5.8, GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Logistics",      Region:"Central", GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:1.9,FDI_Registered:2.7, Credit_to_GDP:133,Export_Value:9.1, GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Textiles",       Region:"Southern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:2.3,FDI_Registered:3.4, Credit_to_GDP:133,Export_Value:37.8,GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Real Estate",    Region:"Southern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:2.0,FDI_Registered:2.9, Credit_to_GDP:133,Export_Value:0.6, GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Construction",   Region:"Northern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:0.9,FDI_Registered:1.3, Credit_to_GDP:133,Export_Value:0.3, GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Financial Svcs", Region:"Southern",GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:1.0,FDI_Registered:1.2, Credit_to_GDP:133,Export_Value:1.7, GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+  { Year:2026,Sector:"Tourism",        Region:"Central", GDP_Growth:6.80,Inflation:4.20,FDI_Disbursed:0.9,FDI_Registered:1.1, Credit_to_GDP:133,Export_Value:3.1, GDP_Value:548,GDP_Per_Capita:5380,Tariff_ETR:20.0,isForecast:true },
+];
 
-        // --- THE UNIFIED DATA ARRAY (2021-2026) ---
-        const DATA = [
-            { year: 2021, gdp: 366, growth: 2.58, fdiReg: 31.1, fdiDisb: 19.7, exports: 336, inflation: 1.84 },
-            { year: 2022, gdp: 408, growth: 8.02, fdiReg: 27.7, fdiDisb: 22.4, exports: 371, inflation: 3.15 },
-            { year: 2023, gdp: 430, growth: 5.05, fdiReg: 36.6, fdiDisb: 23.1, exports: 355, inflation: 3.25 },
-            { year: 2024, gdp: 465, growth: 6.10, fdiReg: 38.0, fdiDisb: 25.0, exports: 420, inflation: 3.80 },
-            { year: 2025, gdp: 514, growth: 8.02, fdiReg: 38.4, fdiDisb: 27.6, exports: 475, inflation: 3.31 },
-            { year: "2026*", gdp: 548, growth: 6.80, fdiReg: 40.0, fdiDisb: 25.6, exports: 499, inflation: 4.20 }
-        ];
+const PEER_DATA = [
+  { country:"Vietnam",    color:"#DA251D", data:{2021:2.58,2022:8.12,2023:5.05,2024:7.09,2025:8.02,2026:6.80} },
+  { country:"Malaysia",   color:"#c9a000", data:{2021:3.3, 2022:8.7, 2023:3.7, 2024:5.1, 2025:5.2, 2026:4.5} },
+  { country:"Indonesia",  color:"#e08020", data:{2021:3.7, 2022:5.3, 2023:5.0, 2024:5.0, 2025:5.11,2026:5.1} },
+  { country:"Thailand",   color:"#2d7a2d", data:{2021:1.5, 2022:2.6, 2023:1.9, 2024:2.5, 2025:2.4, 2026:2.8} },
+  { country:"Philippines",color:"#4a7ab5", data:{2021:5.7, 2022:7.6, 2023:5.5, 2024:5.7, 2025:5.8, 2026:5.5} },
+];
 
-        function Dashboard() {
-            const [selectedYear, setSelectedYear] = useState(null);
-            
-            const filteredData = useMemo(() => {
-                return selectedYear ? DATA.filter(d => d.year === selectedYear) : DATA;
-            }, [selectedYear]);
+const ALL_SECTORS = [...new Set(RAW_DATA.map(d=>d.Sector))];
+const ALL_REGIONS = ["Northern","Central","Southern"];
+const ALL_YEARS   = [2021,2022,2023,2024,2025,2026];
 
-            const current = selectedYear ? filteredData[0] : DATA.find(d => d.year === 2025);
+// ── Market Readiness Score algorithm ──────────────────────
+function calcReadinessScore(filtered) {
+  if (!filtered.length) return 0;
+  const avgGrowth = filtered.reduce((s,d)=>s+d.GDP_Growth,0)/filtered.length;
+  const avgInf    = filtered.reduce((s,d)=>s+d.Inflation,0)/filtered.length;
+  const avgFDI    = filtered.reduce((s,d)=>s+d.FDI_Disbursed,0)/filtered.length;
+  const avgExp    = filtered.reduce((s,d)=>s+d.Export_Value,0)/filtered.length;
+  const avgC2GDP  = filtered.reduce((s,d)=>s+d.Credit_to_GDP,0)/filtered.length;
+  let score = 0;
+  // GDP Growth signal (max 25)
+  score += Math.min(25, (avgGrowth / 10) * 25);
+  // Inflation control (max 20 — lower = better)
+  score += avgInf < 2 ? 20 : avgInf < 3.5 ? 16 : avgInf < 5 ? 10 : 4;
+  // FDI momentum (max 20)
+  score += Math.min(20, (avgFDI / 8) * 20);
+  // Export strength (max 20)
+  score += Math.min(20, (avgExp / 60) * 20);
+  // Credit health (max 15 — 120-140% optimal)
+  score += (avgC2GDP >= 115 && avgC2GDP <= 140) ? 15 : (avgC2GDP < 115) ? 8 : 6;
+  return Math.round(Math.min(100, score));
+}
 
-            // Calculation for EMBA Market Readiness Score
-            const readinessScore = useMemo(() => {
-                let score = 0;
-                if (current.growth > 6) score += 40;
-                if (current.inflation < 4) score += 30;
-                if (current.fdiDisb > 25) score += 30;
-                return score;
-            }, [current]);
+// ── Color helpers ─────────────────────────────────────────
+const SECTOR_COLORS = {
+  "Manufacturing":"#DA251D","Electronics":"#c9a000","Agriculture":"#2d7a2d",
+  "Retail":"#4a7ab5","Logistics":"#e08020","Textiles":"#9e1a14",
+  "Real Estate":"#6a5acd","Construction":"#708090","Financial Svcs":"#20b2aa","Tourism":"#cd853f"
+};
+const REGION_COLORS = { "Northern":"#DA251D","Central":"#c9a000","Southern":"#2d7a2d" };
 
-            return (
-                <div className="max-w-7xl mx-auto p-8 space-y-8">
-                    <header className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h1 className="text-3xl font-extrabold text-slate-900">Vietnam Economic Decision Dashboard</h1>
-                        <p className="text-slate-500 font-medium">Strategic Analysis 2021-2026 | Decision Support Tool</p>
-                    </header>
+function scoreColor(s) {
+  if (s >= 75) return "#2d7a2d";
+  if (s >= 55) return "#c9a000";
+  return "#DA251D";
+}
 
-                    {/* KPI CARDS */}
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        {[
-                            { label: "GDP Growth", val: current.growth + "%" },
-                            { label: "Nominal GDP", val: "$" + current.gdp + "B" },
-                            { label: "FDI Disbursed", val: "$" + current.fdiDisb + "B" },
-                            { label: "Total Exports", val: "$" + current.exports + "B" },
-                            { label: "Market Score", val: readinessScore + "/100" }
-                        ].map((kpi, i) => (
-                            <div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                                <p className="text-xs font-bold text-slate-400 uppercase mb-1">{kpi.label}</p>
-                                <p className="text-2xl font-black text-blue-600">{kpi.val}</p>
-                            </div>
-                        ))}
-                    </div>
+// ── Custom Tooltip ────────────────────────────────────────
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{background:"#1a0800",border:"1px solid #c9a000",borderRadius:4,padding:"10px 14px",fontFamily:"'Libre Baskerville',serif"}}>
+      <p style={{color:"#FFCD00",fontWeight:700,marginBottom:6,fontSize:12}}>{label}</p>
+      {payload.map((p,i)=>(
+        <p key={i} style={{color:p.color||"#f5e8c0",fontSize:11,margin:"2px 0"}}>
+          {p.name}: <strong>{typeof p.value==="number"?p.value.toFixed(2):p.value}</strong>
+        </p>
+      ))}
+    </div>
+  );
+};
 
-                    {/* INTERACTIVE YEAR FILTER */}
-                    <div className="flex bg-slate-200 p-1.5 rounded-xl w-fit space-x-1">
-                        {DATA.map(d => (
-                            <button 
-                                key={d.year}
-                                onClick={() => setSelectedYear(selectedYear === d.year ? null : d.year)}
-                                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${selectedYear === d.year ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
-                            >
-                                {d.year}
-                            </button>
-                        ))}
-                    </div>
+// ── Vietnam SVG Map ───────────────────────────────────────
+const VietnamMap = ({ activeRegions, onRegionClick }) => {
+  const regions = {
+    Northern: { path:"M148,20 L185,18 L195,35 L188,55 L175,70 L160,80 L148,75 L138,60 L130,45 L135,30 Z", label:[162,48], cities:["Hanoi","Hai Phong","Bac Ninh"] },
+    Central:  { path:"M160,80 L175,70 L185,85 L180,110 L170,130 L158,145 L148,140 L142,120 L148,100 L148,85 Z", label:[163,112], cities:["Da Nang","Hue"] },
+    Southern: { path:"M148,140 L158,145 L165,160 L160,178 L148,192 L132,200 L118,195 L108,180 L112,162 L125,148 L138,142 Z", label:[136,175], cities:["Ho Chi Minh City","Can Tho","Binh Duong"] },
+  };
+  return (
+    <svg viewBox="0 60 220 180" style={{width:"100%",height:"100%",maxHeight:320}}>
+      <defs>
+        <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      {/* Ocean */}
+      <rect x="0" y="0" width="300" height="300" fill="#ddeef7"/>
+      {Object.entries(regions).map(([name,r])=>{
+        const isActive = activeRegions.includes(name);
+        return (
+          <g key={name} onClick={()=>onRegionClick(name)} style={{cursor:"pointer"}}>
+            <path d={r.path}
+              fill={isActive ? REGION_COLORS[name] : "#f0ebe0"}
+              stroke={isActive ? REGION_COLORS[name] : "#b8ae98"}
+              strokeWidth={isActive?2:1}
+              opacity={isActive?0.85:0.6}
+              filter={isActive?"url(#glow)":undefined}
+              style={{transition:"all 0.2s"}}
+            />
+            <text x={r.label[0]} y={r.label[1]} textAnchor="middle"
+              fill={isActive?"#fff":"#4a3728"} fontSize={isActive?9:8}
+              fontFamily="'Libre Baskerville',serif" fontWeight={isActive?"700":"400"}>
+              {name}
+            </text>
+            {r.cities.map((c,i)=>(
+              <circle key={c} cx={r.label[0]+(i-1)*12} cy={r.label[1]+14+(i%2)*6}
+                r={isActive?3:2} fill={isActive?REGION_COLORS[name]:"#8a7060"} opacity={0.8}/>
+            ))}
+          </g>
+        );
+      })}
+      {/* Legend */}
+      <text x="10" y="250" fontSize="7" fill="#6a5a4a" fontFamily="serif">▲ Northern: Hanoi, Hai Phong, Bac Ninh</text>
+      <text x="10" y="260" fontSize="7" fill="#6a5a4a" fontFamily="serif">▲ Central: Da Nang, Hue</text>
+      <text x="10" y="270" fontSize="7" fill="#6a5a4a" fontFamily="serif">▲ Southern: HCMC, Can Tho, Binh Duong</text>
+    </svg>
+  );
+};
 
-                    {/* CHARTS */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 h-96">
-                            <h3 className="font-bold text-slate-800 mb-6 uppercase text-sm tracking-widest">Macroeconomic Pulse</h3>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={DATA}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="year" fontSize={12} />
-                                    <YAxis fontSize={12} />
-                                    <Tooltip />
-                                    <Line type="monotone" dataKey="growth" stroke="#2563eb" strokeWidth={4} name="Growth %" />
-                                    <Line type="monotone" dataKey="inflation" stroke="#f59e0b" strokeWidth={3} name="Inflation %" />
-                                </LineChart>
-                            </ResponsiveContainer>
+// ════════════════════════════════════════════════════════════
+// MAIN DASHBOARD COMPONENT
+// ════════════════════════════════════════════════════════════
+export default function Dashboard() {
+  const [selYears,   setSelYears]   = useState(new Set(ALL_YEARS));
+  const [selSectors, setSelSectors] = useState(new Set(ALL_SECTORS));
+  const [selRegions, setSelRegions] = useState(new Set(ALL_REGIONS));
+  const [snapYear,   setSnapYear]   = useState(null);
+  const [openDD,     setOpenDD]     = useState(null); // "sector"|"region"|null
+
+  // ── CORE FILTER FUNCTION ─────────────────────────────────
+  const filtered = useMemo(() => {
+    const years   = snapYear ? new Set([snapYear]) : selYears;
+    return RAW_DATA.filter(d =>
+      years.has(d.Year) &&
+      selSectors.has(d.Sector) &&
+      selRegions.has(d.Region)
+    );
+  }, [selYears, selSectors, selRegions, snapYear]);
+
+  // ── KEY INDICATORS ──────────────────────────────────────
+  const kpis = useMemo(() => {
+    if (!filtered.length) return {};
+    const byYear = {};
+    filtered.forEach(d => {
+      if (!byYear[d.Year]) byYear[d.Year] = [];
+      byYear[d.Year].push(d);
+    });
+    const years = Object.keys(byYear).map(Number).sort();
+    const latest = byYear[years[years.length-1]] || [];
+    const avgGrowth  = +(latest.reduce((s,d)=>s+d.GDP_Growth,0)/latest.length).toFixed(2);
+    const nomGDP     = latest[0]?.GDP_Value ?? 0;
+    const gdpCap     = latest[0]?.GDP_Per_Capita ?? 0;
+    const fdiDisb    = +latest.reduce((s,d)=>s+d.FDI_Disbursed,0).toFixed(1);
+    const exports    = +latest.reduce((s,d)=>s+d.Export_Value,0).toFixed(1);
+    const inflation  = +(latest.reduce((s,d)=>s+d.Inflation,0)/latest.length).toFixed(2);
+    const isForecast = latest[0]?.isForecast ?? false;
+    return { avgGrowth, nomGDP, gdpCap, fdiDisb, exports, inflation, isForecast };
+  }, [filtered]);
+
+  const readiness = useMemo(() => calcReadinessScore(filtered), [filtered]);
+
+  // ── MACRO CHART DATA ─────────────────────────────────────
+  const macroChartData = useMemo(() => {
+    const byYear = {};
+    filtered.forEach(d => {
+      if (!byYear[d.Year]) byYear[d.Year] = { year:d.Year, GDP_Growth:d.GDP_Growth, Inflation:d.Inflation, isForecast:d.isForecast, fdi:0 };
+      byYear[d.Year].fdi += d.FDI_Disbursed;
+    });
+    return Object.values(byYear).sort((a,b)=>a.year-b.year);
+  }, [filtered]);
+
+  // ── FDI GAP DATA ─────────────────────────────────────────
+  const fdiChartData = useMemo(() => {
+    const byYear = {};
+    filtered.forEach(d => {
+      if (!byYear[d.Year]) byYear[d.Year] = { year:d.Year, Registered:0, Disbursed:0, isForecast:d.isForecast };
+      byYear[d.Year].Registered += d.FDI_Registered;
+      byYear[d.Year].Disbursed  += d.FDI_Disbursed;
+    });
+    return Object.values(byYear).sort((a,b)=>a.year-b.year).map(d=>({
+      ...d, Gap:+(d.Registered-d.Disbursed).toFixed(2),
+      Registered:+d.Registered.toFixed(2), Disbursed:+d.Disbursed.toFixed(2)
+    }));
+  }, [filtered]);
+
+  // ── CREDIT/GDP DATA ──────────────────────────────────────
+  const creditData = useMemo(() => {
+    const byYear = {};
+    filtered.forEach(d => { byYear[d.Year] = { year:d.Year, Ratio:d.Credit_to_GDP, isForecast:d.isForecast }; });
+    return Object.values(byYear).sort((a,b)=>a.year-b.year);
+  }, [filtered]);
+
+  // ── PEER DATA ────────────────────────────────────────────
+  const peerChartData = useMemo(() => {
+    const years = [...new Set(filtered.map(d=>d.Year))].sort();
+    return years.map(y=>({
+      year:y,
+      ...Object.fromEntries(PEER_DATA.map(p=>[p.country, p.data[y]??null]))
+    }));
+  }, [filtered]);
+
+  // ── SECTOR TABLE DATA ────────────────────────────────────
+  const sectorTableData = useMemo(() => {
+    const bySec = {};
+    filtered.forEach(d => {
+      if (!bySec[d.Sector]) bySec[d.Sector] = { sector:d.Sector, growth:[], fdi:0, exports:0, count:0 };
+      bySec[d.Sector].growth.push(d.GDP_Growth);
+      bySec[d.Sector].fdi     += d.FDI_Disbursed;
+      bySec[d.Sector].exports += d.Export_Value;
+      bySec[d.Sector].count++;
+    });
+    return Object.values(bySec).map(d=>({
+      sector:    d.sector,
+      avgGrowth: +(d.growth.reduce((a,b)=>a+b,0)/d.growth.length).toFixed(2),
+      totalFDI:  +d.fdi.toFixed(1),
+      totalExp:  +d.exports.toFixed(1),
+    })).sort((a,b)=>b.avgGrowth-a.avgGrowth);
+  }, [filtered]);
+
+  // ── TOGGLE HELPERS ───────────────────────────────────────
+  const toggleSet = useCallback((set, setFn, val) => {
+    setFn(prev => {
+      const n = new Set(prev);
+      n.has(val) ? n.delete(val) : n.add(val);
+      return n;
+    });
+  }, []);
+
+  const handleChartClick = useCallback((data) => {
+    if (!data?.activePayload?.length) return;
+    const yr = data.activePayload[0]?.payload?.year;
+    if (yr) setSnapYear(prev => prev===yr ? null : yr);
+  }, []);
+
+  const handleSectorRowClick = useCallback((sector) => {
+    setSelSectors(prev => {
+      if (prev.size===1 && prev.has(sector)) return new Set(ALL_SECTORS);
+      return new Set([sector]);
+    });
+  }, []);
+
+  const handleRegionClick = useCallback((region) => {
+    setSelRegions(prev => {
+      if (prev.size===1 && prev.has(region)) return new Set(ALL_REGIONS);
+      return new Set([region]);
+    });
+  }, []);
+
+  const isSingleSector = selSectors.size===1;
+  const isSingleRegion = selRegions.size===1;
+  const activeSector   = isSingleSector ? [...selSectors][0] : null;
+  const activeRegion   = isSingleRegion ? [...selRegions][0] : null;
+
+  // ── STYLES ───────────────────────────────────────────────
+  const card = "bg-white rounded border border-stone-200 shadow-sm p-4";
+  const labelCls = "text-xs font-bold tracking-widest uppercase text-stone-400";
+
+  return (
+    <div style={{fontFamily:"'Libre Baskerville',serif",background:"#f7f4ee",minHeight:"100vh"}}>
+
+      {/* ── HEADER ─────────────────────────────────────── */}
+      <header style={{background:"#DA251D",borderBottom:"4px solid #FFCD00",padding:"20px 32px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",inset:0,backgroundImage:"repeating-linear-gradient(-55deg,transparent,transparent 22px,rgba(0,0,0,0.05) 22px,rgba(0,0,0,0.05) 44px)"}}/>
+        <div style={{position:"relative",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <span style={{color:"#FFCD00",fontSize:24,textShadow:"0 0 10px rgba(255,205,0,0.5)"}}>★</span>
+              <h1 style={{color:"#fff",fontFamily:"'IM Fell English',serif",fontSize:22,fontWeight:400,letterSpacing:1,margin:0}}>
+                Vietnam Economic Decision Dashboard: <span style={{color:"#FFCD00"}}>Strategic Analysis 2021–2026</span>
+              </h1>
+            </div>
+            <p style={{color:"rgba(255,255,255,0.6)",fontSize:10,letterSpacing:3,textTransform:"uppercase",fontStyle:"italic",margin:0}}>
+              Cộng hòa xã hội chủ nghĩa Việt Nam · EMBA Market Entry Decision Support
+            </p>
+          </div>
+          <div style={{textAlign:"right",color:"rgba(255,255,255,0.55)",fontSize:10,lineHeight:1.9,letterSpacing:.5}}>
+            GDP 2025: $514B &nbsp;|&nbsp; Exports: $475B &nbsp;|&nbsp; FDI: $27.6B<br/>
+            Growth: 8.02% &nbsp;|&nbsp; Inflation: 3.31% &nbsp;|&nbsp; GDP/Capita: $5,026
+          </div>
+        </div>
+      </header>
+
+      <div style={{padding:"20px 28px",maxWidth:1560,margin:"0 auto"}}>
+
+        {/* ── ACTIVE FILTER BANNER ─────────────────────── */}
+        {(snapYear||isSingleSector||isSingleRegion) && (
+          <div style={{background:"rgba(218,37,29,0.06)",border:"1px solid rgba(218,37,29,0.2)",borderRadius:4,padding:"8px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:11}}>
+            <span style={{color:"#9e1a14"}}>
+              Filtered to: {[snapYear&&`Year ${snapYear}`,activeSector,activeRegion&&`${activeRegion} Region`].filter(Boolean).join(" · ")}
+              &nbsp;—&nbsp; click the same selection again to clear
+            </span>
+            <button onClick={()=>{setSnapYear(null);setSelSectors(new Set(ALL_SECTORS));setSelRegions(new Set(ALL_REGIONS));}}
+              style={{cursor:"pointer",fontSize:10,color:"#9e1a14",border:"1px solid rgba(218,37,29,0.3)",borderRadius:3,padding:"2px 10px",background:"transparent",fontFamily:"inherit"}}>
+              ✕ Clear All
+            </button>
+          </div>
+        )}
+
+        {/* ── KEY INDICATORS ROW ───────────────────────── */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:18}}>
+          {[
+            {label:"GDP Growth",     val:`${kpis.avgGrowth??'—'}%`,   sub: kpis.isForecast?"IMF Forecast":"NSO Confirmed"},
+            {label:"Nominal GDP",    val:`$${kpis.nomGDP??'—'}B`,     sub:"USD Billion"},
+            {label:"GDP Per Capita", val:`$${(kpis.gdpCap??0).toLocaleString()}`, sub:"USD"},
+            {label:"FDI Disbursed",  val:`$${kpis.fdiDisb??'—'}B`,    sub:"Filtered selection"},
+            {label:"Export Revenue", val:`$${kpis.exports??'—'}B`,    sub:"Filtered selection"},
+            {label:"Inflation",      val:`${kpis.inflation??'—'}%`,   sub:"Avg consumer prices"},
+          ].map(k=>(
+            <div key={k.label} style={{background:"#fff",border:"1px solid #e8e0d4",borderTop:"3px solid #DA251D",borderRadius:4,padding:"14px 10px",textAlign:"center"}}>
+              <div style={{fontSize:22,fontWeight:700,color:"#DA251D",fontFamily:"'IM Fell English',serif"}}>{k.val}</div>
+              <div style={{fontSize:8,textTransform:"uppercase",letterSpacing:1.5,color:"#8a7060",marginTop:4}}>{k.label}</div>
+              <div style={{fontSize:9,color:"#b0a090",marginTop:2}}>{k.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── LEVERS ROW ───────────────────────────────── */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1.2fr",gap:14,marginBottom:18,alignItems:"start"}}>
+
+          {/* Sector Multi-select */}
+          <div style={{position:"relative"}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#8a7060",marginBottom:6}}>Industry Sectors</div>
+            <div onClick={()=>setOpenDD(openDD==="sector"?null:"sector")}
+              style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"9px 13px",cursor:"pointer",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center",userSelect:"none"}}>
+              <span>{selSectors.size===ALL_SECTORS.length?"All Sectors":selSectors.size===0?"None":`${selSectors.size} Selected`}</span>
+              <span style={{color:"#c9a000"}}>▾</span>
+            </div>
+            {openDD==="sector" && (
+              <div style={{position:"absolute",top:"calc(100% + 2px)",left:0,right:0,background:"#fff",border:"1px solid #e8e0d4",borderTop:"2px solid #DA251D",borderRadius:"0 0 4px 4px",zIndex:200,maxHeight:220,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,0.1)"}}>
+                {ALL_SECTORS.map(s=>(
+                  <div key={s} onClick={(e)=>{e.stopPropagation();toggleSet(selSectors,setSelSectors,s);}}
+                    style={{padding:"8px 13px",display:"flex",alignItems:"center",gap:9,fontSize:12,borderBottom:"1px solid #f0ebe4",cursor:"pointer",background:selSectors.has(s)?"#fdf5f5":"#fff"}}>
+                    <input type="checkbox" readOnly checked={selSectors.has(s)} style={{accentColor:"#DA251D"}}/>
+                    <span style={{width:8,height:8,borderRadius:"50%",background:SECTOR_COLORS[s],display:"inline-block"}}/>
+                    {s}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Region Multi-select */}
+          <div style={{position:"relative"}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#8a7060",marginBottom:6}}>Regions</div>
+            <div onClick={()=>setOpenDD(openDD==="region"?null:"region")}
+              style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"9px 13px",cursor:"pointer",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center",userSelect:"none"}}>
+              <span>{selRegions.size===ALL_REGIONS.length?"All Regions":selRegions.size===0?"None":[...selRegions].join(", ")}</span>
+              <span style={{color:"#c9a000"}}>▾</span>
+            </div>
+            {openDD==="region" && (
+              <div style={{position:"absolute",top:"calc(100% + 2px)",left:0,right:0,background:"#fff",border:"1px solid #e8e0d4",borderTop:"2px solid #DA251D",borderRadius:"0 0 4px 4px",zIndex:200,boxShadow:"0 8px 24px rgba(0,0,0,0.1)"}}>
+                {ALL_REGIONS.map(r=>(
+                  <div key={r} onClick={(e)=>{e.stopPropagation();toggleSet(selRegions,setSelRegions,r);}}
+                    style={{padding:"8px 13px",display:"flex",alignItems:"center",gap:9,fontSize:12,borderBottom:"1px solid #f0ebe4",cursor:"pointer",background:selRegions.has(r)?"#fdf5f5":"#fff"}}>
+                    <input type="checkbox" readOnly checked={selRegions.has(r)} style={{accentColor:"#DA251D"}}/>
+                    <span style={{width:8,height:8,borderRadius:"50%",background:REGION_COLORS[r],display:"inline-block"}}/>
+                    {r}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Year Quick Snap */}
+          <div>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#8a7060",marginBottom:6}}>Quick Snap — Year</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              {ALL_YEARS.map(y=>(
+                <button key={y} onClick={()=>setSnapYear(prev=>prev===y?null:y)}
+                  style={{padding:"5px 10px",borderRadius:3,fontSize:11,fontFamily:"inherit",cursor:"pointer",fontWeight:snapYear===y?700:400,
+                    background:snapYear===y?"#DA251D":"#fff",color:snapYear===y?"#fff":"#4a3728",
+                    border:`1px solid ${snapYear===y?"#DA251D":"#e8e0d4"}`,
+                    outline:y===2026?"2px dashed #c9a000":undefined,outlineOffset:y===2026?2:undefined}}>
+                  {y}{y===2026?"*":""}
+                </button>
+              ))}
+              <div style={{fontSize:8,color:"#b0a090",alignSelf:"center"}}>* Forecast</div>
+            </div>
+          </div>
+
+          {/* Market Readiness Score */}
+          <div style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"12px 16px",borderLeft:"4px solid "+scoreColor(readiness)}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"#8a7060",marginBottom:6}}>Market Readiness Score</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:6}}>
+              <span style={{fontSize:32,fontWeight:700,color:scoreColor(readiness),fontFamily:"'IM Fell English',serif"}}>{readiness}</span>
+              <span style={{fontSize:16,color:scoreColor(readiness)}}>/ 100</span>
+              <span style={{fontSize:10,color:"#8a7060",marginLeft:4}}>{readiness>=75?"Strong ✓":readiness>=55?"Moderate ◐":"Caution ✗"}</span>
+            </div>
+            <div style={{background:"#f0ebe4",borderRadius:3,height:6,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${readiness}%`,background:scoreColor(readiness),borderRadius:3,transition:"width 0.5s ease"}}/>
+            </div>
+            <div style={{fontSize:9,color:"#a09080",marginTop:5,lineHeight:1.5}}>
+              Factors: GDP growth · Inflation control · FDI momentum · Export strength · Credit health
+            </div>
+          </div>
+        </div>
+
+        {/* ── 2×2 CHART GRID ───────────────────────────── */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+
+          {/* Chart 1: Macro Pulse */}
+          <div style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"16px 16px 8px"}}>
+            <h3 style={{fontFamily:"'IM Fell English',serif",fontWeight:400,fontSize:15,color:"#1e1208",margin:"0 0 3px"}}>Macroeconomic Pulse</h3>
+            <p style={{fontSize:9,color:"#8a7060",margin:"0 0 12px",paddingBottom:8,borderBottom:"1px solid #f0ebe4"}}>GDP Growth vs. Inflation · Click a data point to snap to that year</p>
+            <ResponsiveContainer width="100%" height={250}>
+              <ComposedChart data={macroChartData} onClick={handleChartClick} style={{cursor:"pointer"}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)"/>
+                <XAxis dataKey="year" tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}}/>
+                <YAxis yAxisId="l" tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}}/>
+                <YAxis yAxisId="r" orientation="right" tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}}/>
+                <Tooltip content={<ChartTooltip/>}/>
+                <Legend wrapperStyle={{fontSize:10,fontFamily:"serif"}}/>
+                <ReferenceLine yAxisId="l" y={6} stroke="rgba(201,160,0,0.4)" strokeDasharray="4 2" label={{value:"6% threshold",position:"insideTopLeft",fontSize:8,fill:"#c9a000"}}/>
+                <Bar yAxisId="r" dataKey="Inflation" name="Inflation %" fill="rgba(218,37,29,0.18)" stroke="rgba(218,37,29,0.5)" strokeWidth={1} radius={[2,2,0,0]}/>
+                <Line yAxisId="l" type="monotone" dataKey="GDP_Growth" name="GDP Growth %" stroke="#DA251D" strokeWidth={3} dot={{r:5,fill:"#DA251D"}} activeDot={{r:7}}
+                  strokeDasharray={d=>d?.isForecast?"6 3":undefined}/>
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 2: FDI Gap Analysis */}
+          <div style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"16px 16px 8px"}}>
+            <h3 style={{fontFamily:"'IM Fell English',serif",fontWeight:400,fontSize:15,color:"#1e1208",margin:"0 0 3px"}}>FDI Gap Analysis</h3>
+            <p style={{fontSize:9,color:"#8a7060",margin:"0 0 12px",paddingBottom:8,borderBottom:"1px solid #f0ebe4"}}>Registered (intent) vs. Disbursed (realized) · Gap = unrealized commitments</p>
+            <ResponsiveContainer width="100%" height={250}>
+              <ComposedChart data={fdiChartData} onClick={handleChartClick} style={{cursor:"pointer"}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)"/>
+                <XAxis dataKey="year" tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}}/>
+                <YAxis tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}} label={{value:"USD bn",angle:-90,position:"insideLeft",offset:-5,style:{fontSize:9,fill:"#8a7060"}}}/>
+                <Tooltip content={<ChartTooltip/>}/>
+                <Legend wrapperStyle={{fontSize:10,fontFamily:"serif"}}/>
+                <Bar dataKey="Registered" name="Registered FDI" fill="rgba(158,26,20,0.25)" stroke="#9e1a14" strokeWidth={1} radius={[2,2,0,0]}/>
+                <Bar dataKey="Disbursed"  name="Disbursed FDI"  fill="rgba(218,37,29,0.75)" radius={[2,2,0,0]}/>
+                <Line type="monotone" dataKey="Gap" name="Reg–Disb Gap" stroke="#4a7ab5" strokeWidth={2} strokeDasharray="4 2" dot={{r:4,fill:"#4a7ab5"}}/>
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 3: Credit-to-GDP */}
+          <div style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"16px 16px 8px"}}>
+            <h3 style={{fontFamily:"'IM Fell English',serif",fontWeight:400,fontSize:15,color:"#1e1208",margin:"0 0 3px"}}>Credit-to-GDP Ratio Trajectory</h3>
+            <p style={{fontSize:9,color:"#8a7060",margin:"0 0 12px",paddingBottom:8,borderBottom:"1px solid #f0ebe4"}}>Outstanding credit as % of GDP · 120–140% considered optimal for emerging markets</p>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={creditData} onClick={handleChartClick} style={{cursor:"pointer"}}>
+                <defs>
+                  <linearGradient id="creditGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#DA251D" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#DA251D" stopOpacity={0.02}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)"/>
+                <XAxis dataKey="year" tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}}/>
+                <YAxis domain={[110,145]} tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}} label={{value:"%",angle:-90,position:"insideLeft",offset:10,style:{fontSize:9,fill:"#8a7060"}}}/>
+                <Tooltip content={<ChartTooltip/>}/>
+                <ReferenceLine y={120} stroke="rgba(201,160,0,0.5)" strokeDasharray="4 2" label={{value:"120% floor",position:"insideTopLeft",fontSize:8,fill:"#c9a000"}}/>
+                <ReferenceLine y={140} stroke="rgba(218,37,29,0.4)" strokeDasharray="4 2" label={{value:"140% ceiling",position:"insideTopLeft",fontSize:8,fill:"#DA251D"}}/>
+                <Area type="monotone" dataKey="Ratio" name="Credit/GDP %" stroke="#DA251D" strokeWidth={2.5} fill="url(#creditGrad)" dot={{r:5,fill:"#DA251D"}}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 4: Peer Comparison */}
+          <div style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"16px 16px 8px"}}>
+            <h3 style={{fontFamily:"'IM Fell English',serif",fontWeight:400,fontSize:15,color:"#1e1208",margin:"0 0 3px"}}>Peer Country Growth Comparison</h3>
+            <p style={{fontSize:9,color:"#8a7060",margin:"0 0 12px",paddingBottom:8,borderBottom:"1px solid #f0ebe4"}}>Real GDP growth % · SE Asia peers · Source: IMF WEO · 2026 = forecast</p>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={peerChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)"/>
+                <XAxis dataKey="year" tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}}/>
+                <YAxis tick={{fontSize:10,fontFamily:"serif",fill:"#4a3728"}} label={{value:"%",angle:-90,position:"insideLeft",offset:10,style:{fontSize:9,fill:"#8a7060"}}}/>
+                <Tooltip content={<ChartTooltip/>}/>
+                <Legend wrapperStyle={{fontSize:10,fontFamily:"serif"}}/>
+                {PEER_DATA.map(p=>(
+                  <Line key={p.country} type="monotone" dataKey={p.country}
+                    stroke={p.color} strokeWidth={p.country==="Vietnam"?3.5:1.8}
+                    dot={{r:p.country==="Vietnam"?6:4,fill:p.color}}
+                    strokeDasharray={p.country==="Vietnam"?undefined:"4 2"}/>
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* ── BOTTOM ROW: Sector Table + Regional Map ── */}
+        <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr",gap:16,marginBottom:16}}>
+
+          {/* Sector Growth Table */}
+          <div style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"16px"}}>
+            <h3 style={{fontFamily:"'IM Fell English',serif",fontWeight:400,fontSize:15,color:"#1e1208",margin:"0 0 3px"}}>Sector Growth Intelligence</h3>
+            <p style={{fontSize:9,color:"#8a7060",margin:"0 0 12px",paddingBottom:8,borderBottom:"1px solid #f0ebe4"}}>Click any row to filter the entire dashboard to that sector · Click again to deselect</p>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <thead>
+                <tr>
+                  {["Sector","Avg Growth","Total FDI (B)","Exports (B)","Momentum"].map(h=>(
+                    <th key={h} style={{fontSize:8,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,color:"#8a7060",padding:"5px 8px",textAlign:h==="Sector"?"left":"center",borderBottom:"2px solid #e8e0d4"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sectorTableData.map(row=>{
+                  const isSelected = selSectors.size===1 && selSectors.has(row.sector);
+                  const isDimmed   = selSectors.size===1 && !selSectors.has(row.sector);
+                  return (
+                    <tr key={row.sector} onClick={()=>handleSectorRowClick(row.sector)}
+                      style={{cursor:"pointer",opacity:isDimmed?0.35:1,
+                        background:isSelected?"rgba(218,37,29,0.06)":"transparent",
+                        borderLeft:isSelected?"3px solid #DA251D":"3px solid transparent",
+                        transition:"all 0.15s"}}>
+                      <td style={{padding:"8px 8px",borderBottom:"1px solid #f0ebe4",display:"flex",alignItems:"center",gap:7}}>
+                        <span style={{width:8,height:8,borderRadius:"50%",background:SECTOR_COLORS[row.sector],display:"inline-block",flexShrink:0}}/>
+                        <span style={{fontWeight:isSelected?700:400}}>{row.sector}</span>
+                      </td>
+                      <td style={{padding:"8px",borderBottom:"1px solid #f0ebe4",textAlign:"center",fontWeight:700,color:row.avgGrowth>=7?"#2d7a2d":row.avgGrowth>=5?"#c9a000":"#DA251D"}}>
+                        {row.avgGrowth}%
+                      </td>
+                      <td style={{padding:"8px",borderBottom:"1px solid #f0ebe4",textAlign:"center"}}>
+                        ${row.totalFDI}
+                      </td>
+                      <td style={{padding:"8px",borderBottom:"1px solid #f0ebe4",textAlign:"center"}}>
+                        ${row.totalExp}
+                      </td>
+                      <td style={{padding:"8px",borderBottom:"1px solid #f0ebe4",textAlign:"center"}}>
+                        <div style={{background:"#f0ebe4",borderRadius:3,height:5,width:60,margin:"0 auto",overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${Math.min(100,(row.avgGrowth/10)*100)}%`,background:row.avgGrowth>=7?"#2d7a2d":row.avgGrowth>=5?"#c9a000":"#DA251D",borderRadius:3}}/>
                         </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 h-96">
-                            <h3 className="font-bold text-slate-800 mb-6 uppercase text-sm tracking-widest">FDI Gap (Realization)</h3>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={DATA}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="year" fontSize={12} />
-                                    <YAxis fontSize={12} />
-                                    <Tooltip />
-                                    <Bar dataKey="fdiReg" fill="#cbd5e1" name="Registered" />
-                                    <Bar dataKey="fdiDisb" fill="#2563eb" name="Disbursed" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
+          {/* Regional Map */}
+          <div style={{background:"#fff",border:"1px solid #e8e0d4",borderRadius:4,padding:"16px"}}>
+            <h3 style={{fontFamily:"'IM Fell English',serif",fontWeight:400,fontSize:15,color:"#1e1208",margin:"0 0 3px"}}>Regional Investment Map</h3>
+            <p style={{fontSize:9,color:"#8a7060",margin:"0 0 8px",paddingBottom:8,borderBottom:"1px solid #f0ebe4"}}>Click a region to filter the entire dashboard · Northern/Central/Southern clusters</p>
+            {/* Region KPIs */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:10}}>
+              {ALL_REGIONS.map(r=>{
+                const rData = filtered.filter(d=>d.Region===r);
+                const rFDI  = rData.reduce((s,d)=>s+d.FDI_Disbursed,0).toFixed(1);
+                const rExp  = rData.reduce((s,d)=>s+d.Export_Value,0).toFixed(1);
+                const isAct = selRegions.has(r) && selRegions.size<3;
+                return (
+                  <div key={r} onClick={()=>handleRegionClick(r)} style={{cursor:"pointer",
+                    padding:"8px 6px",borderRadius:3,textAlign:"center",transition:"all 0.15s",
+                    background:selRegions.has(r)&&selRegions.size<3?"rgba(218,37,29,0.06)":"#f7f4ee",
+                    border:`1px solid ${selRegions.has(r)&&selRegions.size<3?REGION_COLORS[r]:"#e8e0d4"}`,
+                    borderTop:`3px solid ${REGION_COLORS[r]}`}}>
+                    <div style={{fontSize:10,fontWeight:700,color:REGION_COLORS[r],marginBottom:2}}>{r}</div>
+                    <div style={{fontSize:9,color:"#4a3728"}}>FDI: <strong>${rFDI}B</strong></div>
+                    <div style={{fontSize:9,color:"#4a3728"}}>Exp: <strong>${rExp}B</strong></div>
+                  </div>
+                );
+              })}
+            </div>
+            <VietnamMap activeRegions={[...selRegions]} onRegionClick={handleRegionClick}/>
+          </div>
+        </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<Dashboard />);
-    </script>
-</body>
-</html>
+        {/* ── FOOTER ─────────────────────────────────── */}
+        <div style={{textAlign:"center",fontSize:9,color:"#a09080",padding:"12px 0",borderTop:"1px solid #e8e0d4",lineHeight:1.8}}>
+          Sources: NSO Vietnam (2026 release) · IMF World Economic Outlook 2025 · Penn Wharton / USITC DataWeb · Vietnam Briefing 2025 · CBRE/Savills Industrial Report 2024 · InCorp Vietnam 2025<br/>
+          2025 figures confirmed actuals · 2026 = IMF WEO forecast · All FDI figures in USD billions · Tariff ETR: Penn Wharton / USITC weighted-average effective rates
+        </div>
+      </div>
+
+      {/* Click outside closes dropdowns */}
+      {openDD && <div style={{position:"fixed",inset:0,zIndex:100}} onClick={()=>setOpenDD(null)}/>}
+    </div>
+  );
+}
