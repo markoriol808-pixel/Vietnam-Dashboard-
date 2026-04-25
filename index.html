@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vietnam Economic Decision Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+:root{--bg:#f7f8fb;--card:#fff;--ink:#17202a;--muted:#6b7280;--blue:#0f5e9c;--red:#b42318;--green:#138a5b;--gold:#b7791f;--line:#e5e7eb;--shadow:0 10px 30px rgba(15,23,42,.08)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Segoe UI,Arial,sans-serif;color:var(--ink)}
+.header{padding:28px 34px 18px;background:linear-gradient(135deg,#0b2545,#0f5e9c 64%,#e7f0f8);color:#fff}.header h1{margin:0;font-size:28px;letter-spacing:.2px}.header p{margin:8px 0 0;max-width:1050px;line-height:1.45;color:#dbeafe}.meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:6px 11px;font-size:12px}.wrap{padding:22px 28px 36px;max-width:1520px;margin:auto}.filters{display:grid;grid-template-columns:1.2fr 1.1fr .8fr;gap:14px;margin-bottom:16px}.panel,.card{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:18px}.panel{padding:16px}.panel h3,.card h3{margin:0 0 10px;font-size:15px}.checks{display:flex;flex-wrap:wrap;gap:8px}.checks label{font-size:12px;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:#fbfdff;cursor:pointer}.checks input{vertical-align:-2px}.sliderBox{display:flex;align-items:center;gap:12px}.sliderBox input{width:100%}.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:16px}.kpi{padding:16px}.kpi .label{font-size:12px;color:var(--muted);margin-bottom:7px}.kpi .value{font-size:24px;font-weight:700}.kpi .sub{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.35}.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}.card{padding:14px;min-height:390px}.wide{grid-column:1/-1}.viz{width:100%;height:330px}.insight{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}.insight div{border-left:4px solid var(--blue);background:#f8fafc;border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.45}.insight b{display:block;margin-bottom:4px}.table{width:100%;border-collapse:collapse;font-size:12px}.table th,.table td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left}.table th{color:#4b5563;background:#f9fafb}.note{font-size:11px;color:var(--muted);line-height:1.45}.sources{font-size:11px;color:#4b5563;line-height:1.45}.tag{display:inline-block;font-size:11px;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#0f5e9c;margin-left:6px}.warn{color:var(--red)}.good{color:var(--green)}@media(max-width:1100px){.filters,.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.insight{grid-template-columns:1fr}.card{min-height:360px}}
+</style>
+</head>
+<body>
+<section class="header"><h1>Vietnam Economic Decision Dashboard <span class="tag">2021–2026</span></h1><p>Interactive country dashboard for assessing Vietnam’s growth, trade position, FDI attractiveness, sector structure, and tariff exposure. Use the filters to connect macro stability, sector mix, and investment risk in one view.</p><div class="meta"><span class="chip">Audience: MNC investment forum</span><span class="chip">Mode: GitHub-ready HTML</span><span class="chip">Currency: USD billions unless noted</span><span class="chip">2026 values are forecast/IMF outlook where available</span></div></section>
+<main class="wrap">
+<section class="filters panel"><div><h3>Year filter</h3><div id="yearChecks" class="checks"></div></div><div><h3>Sector filter</h3><div id="sectorChecks" class="checks"></div></div><div><h3>Tariff scenario</h3><div class="sliderBox"><input type="range" id="tariff" min="0" max="46" value="20" step="1"><b id="tariffVal">20%</b></div><p class="note">Slider estimates export value at risk using sector export exposure × assumed demand sensitivity.</p></div></section>
+<section class="kpis" id="kpis"></section>
+<section class="grid">
+<div class="card"><h3>Macro Stability Pulse</h3><div id="macroChart" class="viz"></div><div class="insight"><div><b>Resilience story</b>Vietnam rebounded from the pandemic with growth above 7% in 2024 and 8% in 2025.</div><div><b>Watch inflation</b>Macro stability remains favorable, but the 2026 inflation outlook is higher than 2025.</div><div><b>Decision signal</b>Growth is strong, but investors should stress-test wage, FX, and tariff risk.</div></div></div>
+<div class="card"><h3>Top GDP Sectors <span class="tag">click bars to isolate</span></h3><div id="sectorChart" class="viz"></div><p class="note">Sector shares are modeled from official/market sector structure references and used to create a decision dashboard view rather than a statutory GDP account table.</p></div>
+<div class="card"><h3>Trade View: Exports, Imports, Balance</h3><div id="tradeChart" class="viz"></div></div>
+<div class="card"><h3>FDI View: Registered vs. Disbursed Capital</h3><div id="fdiChart" class="viz"></div></div>
+<div class="card wide"><h3>Tariff Exposure and Site-Selection Risk</h3><div id="riskChart" class="viz"></div><div id="riskTable"></div></div>
+<div class="card wide"><h3>Executive Interpretation</h3><div class="insight"><div><b>Most attractive thesis</b>Vietnam combines high GDP growth, deepening electronics/manufacturing capacity, and strong FDI inflows. That supports a China+1 manufacturing case.</div><div><b>Primary risk thesis</b>The same export-led model that attracts manufacturers also creates tariff and U.S. demand exposure, especially in electronics, textiles, furniture, and footwear.</div><div><b>Recommended use</b>Use Vietnam as a production and regional-platform candidate, but pair it with supplier localization, tariff classification review, and contingency planning for trade-policy shocks.</div></div><p class="sources"><b>Sources used in dashboard build:</b> IMF DataMapper Vietnam profile and IMF Vietnam country page; National Statistics Office of Vietnam 2025 socio-economic release; Vietnam Briefing/China Briefing 2025 GDP, FDI, and trade summaries; Vietnam Customs 2025 trade statistics; U.S. Census trade in goods with Vietnam; World Bank WITS trade snapshot; Reuters and USTR tariff/trade-policy reporting. Full reference appendix was provided in the uploaded reference document.</p></div>
+</section>
+</main>
+<script>
+const years=[2021,2022,2023,2024,2025,2026];
+const macro=[
+{year:2021,gdpGrowth:2.6,gdp:366,inflation:1.84,fiscalBalance:-3.4,debt:39.1},
+{year:2022,gdpGrowth:8.12,gdp:409,inflation:3.15,fiscalBalance:-0.3,debt:35.7},
+{year:2023,gdpGrowth:5.05,gdp:433,inflation:3.25,fiscalBalance:-1.0,debt:34.0},
+{year:2024,gdpGrowth:7.09,gdp:476,inflation:3.63,fiscalBalance:-1.5,debt:31.3},
+{year:2025,gdpGrowth:8.02,gdp:514,inflation:3.31,fiscalBalance:-1.5,debt:31.3},
+{year:2026,gdpGrowth:7.10,gdp:527.27,inflation:4.90,fiscalBalance:-1.7,debt:32.0}
+];
+const trade=[
+{year:2021,exports:336.31,imports:332.23,balance:4.08},
+{year:2022,exports:371.85,imports:360.65,balance:11.20},
+{year:2023,exports:354.70,imports:326.40,balance:28.30},
+{year:2024,exports:405.50,imports:380.80,balance:24.70},
+{year:2025,exports:475.06,imports:455.03,balance:20.03},
+{year:2026,exports:500.00,imports:490.00,balance:10.00}
+];
+const fdi=[
+{year:2021,registered:31.15,disbursed:19.74},
+{year:2022,registered:27.72,disbursed:22.40},
+{year:2023,registered:36.60,disbursed:23.18},
+{year:2024,registered:38.23,disbursed:25.35},
+{year:2025,registered:38.42,disbursed:27.60},
+{year:2026,registered:40.00,disbursed:29.00}
+];
+const sectors=[
+{name:'Manufacturing & processing',share:24.5,growth:10.2,fdiShare:56.5,exports:220,usExposure:.32,sensitivity:.65},
+{name:'Wholesale & retail',share:10.8,growth:8.9,fdiShare:3.6,exports:12,usExposure:.08,sensitivity:.25},
+{name:'Agriculture, forestry & fishery',share:10.9,growth:3.8,fdiShare:1.4,exports:42,usExposure:.18,sensitivity:.35},
+{name:'Real estate',share:7.6,growth:4.3,fdiShare:21.2,exports:0,usExposure:0,sensitivity:0},
+{name:'Financial services',share:6.6,growth:7.1,fdiShare:2.7,exports:0,usExposure:0,sensitivity:0},
+{name:'Construction',share:6.4,growth:7.9,fdiShare:3.3,exports:0,usExposure:0,sensitivity:0},
+{name:'Transport & logistics',share:5.3,growth:8.1,fdiShare:2.2,exports:10,usExposure:.12,sensitivity:.2},
+{name:'Accommodation & food',share:4.6,growth:9.8,fdiShare:1.1,exports:0,usExposure:0,sensitivity:0},
+{name:'Information & communication',share:4.4,growth:8.4,fdiShare:2.4,exports:18,usExposure:.20,sensitivity:.3},
+{name:'Mining & quarrying',share:2.7,growth:-2.0,fdiShare:.7,exports:8,usExposure:.05,sensitivity:.4},
+{name:'Textiles, garments & footwear',share:3.9,growth:6.4,fdiShare:2.0,exports:70,usExposure:.43,sensitivity:.75},
+{name:'Furniture & wood products',share:2.4,growth:5.7,fdiShare:.8,exports:18,usExposure:.55,sensitivity:.85},
+{name:'Electronics export cluster',share:8.8,growth:11.4,fdiShare:18.0,exports:145,usExposure:.30,sensitivity:.6}
+];
+let selectedYears=new Set(years); let selectedSectors=new Set(sectors.map(s=>s.name)); let isolatedSector=null;
+const blue='#0f5e9c', red='#b42318', green='#138a5b', gold='#b7791f', gray='#6b7280';
+function layout(title=''){return {margin:{t:28,l:55,r:25,b:55},paper_bgcolor:'white',plot_bgcolor:'white',font:{family:'Segoe UI, Arial',size:12,color:'#17202a'},legend:{orientation:'h',y:-.22},hovermode:'x unified',xaxis:{gridcolor:'#eef2f7'},yaxis:{gridcolor:'#eef2f7'},title:{text:title,font:{size:13}}}}
+function filtered(arr){return arr.filter(d=>selectedYears.has(d.year))}
+function initChecks(){document.getElementById('yearChecks').innerHTML=years.map(y=>`<label><input type="checkbox" checked value="${y}" class="yearCB"> ${y}</label>`).join('');document.getElementById('sectorChecks').innerHTML=sectors.map(s=>`<label><input type="checkbox" checked value="${s.name}" class="sectorCB"> ${s.name.replace(' & ',' & ')}</label>`).join('');document.querySelectorAll('.yearCB').forEach(cb=>cb.onchange=e=>{e.target.checked?selectedYears.add(+e.target.value):selectedYears.delete(+e.target.value);updateAll()});document.querySelectorAll('.sectorCB').forEach(cb=>cb.onchange=e=>{e.target.checked?selectedSectors.add(e.target.value):selectedSectors.delete(e.target.value);isolatedSector=null;updateAll()});document.getElementById('tariff').oninput=e=>{document.getElementById('tariffVal').textContent=e.target.value+'%';updateRisk()}}
+function updateKPIs(){let m=filtered(macro), t=filtered(trade), f=filtered(fdi);let last=m[m.length-1]||macro[macro.length-1];let first=m[0]||macro[0];let avgGrowth=m.reduce((a,b)=>a+b.gdpGrowth,0)/Math.max(m.length,1);let tradeBal=t.reduce((a,b)=>a+b.balance,0);let fdiDis=f.reduce((a,b)=>a+b.disbursed,0);let tariff=+document.getElementById('tariff').value;let risk=calcRisk(tariff).reduce((a,b)=>a+b.valueRisk,0);document.getElementById('kpis').innerHTML=`<div class="card kpi"><div class="label">Avg real GDP growth</div><div class="value">${avgGrowth.toFixed(1)}%</div><div class="sub">Selected years: ${m.length}</div></div><div class="card kpi"><div class="label">Latest GDP</div><div class="value">$${last.gdp.toFixed(0)}B</div><div class="sub">${last.year} current prices</div></div><div class="card kpi"><div class="label">Latest inflation</div><div class="value ${last.inflation>4?'warn':'good'}">${last.inflation.toFixed(1)}%</div><div class="sub">Consumer prices, annual %</div></div><div class="card kpi"><div class="label">Cumulative trade balance</div><div class="value">$${tradeBal.toFixed(1)}B</div><div class="sub">Exports minus imports</div></div><div class="card kpi"><div class="label">FDI disbursed</div><div class="value">$${fdiDis.toFixed(1)}B</div><div class="sub">Cumulative selected years</div></div><div class="card kpi"><div class="label">Tariff value at risk</div><div class="value warn">$${risk.toFixed(1)}B</div><div class="sub">Scenario at ${tariff}% tariff</div></div>`}
+function updateMacro(){let m=filtered(macro);Plotly.react('macroChart',[{x:m.map(d=>d.year),y:m.map(d=>d.gdpGrowth),name:'GDP growth %',type:'scatter',mode:'lines+markers',line:{color:blue,width:3}},{x:m.map(d=>d.year),y:m.map(d=>d.inflation),name:'Inflation %',type:'scatter',mode:'lines+markers',line:{color:red,width:3}},{x:m.map(d=>d.year),y:m.map(d=>d.fiscalBalance),name:'Fiscal balance % GDP',type:'bar',marker:{color:gray},opacity:.38}],{...layout(),yaxis:{title:'Annual % / % of GDP',gridcolor:'#eef2f7'},xaxis:{dtick:1,gridcolor:'#eef2f7'}},{responsive:true})}
+function updateSectors(){let s=sectors.filter(d=>selectedSectors.has(d.name)).sort((a,b)=>a.share-b.share);if(isolatedSector){s=s.filter(d=>d.name===isolatedSector)}Plotly.react('sectorChart',[{x:s.map(d=>d.share),y:s.map(d=>d.name),type:'bar',orientation:'h',marker:{color:s.map(d=>d.growth>=8?green:(d.growth<0?red:blue))},customdata:s.map(d=>[d.growth,d.fdiShare]),hovertemplate:'%{y}<br>GDP share: %{x:.1f}%<br>Growth: %{customdata[0]:.1f}%<br>FDI share: %{customdata[1]:.1f}%<extra></extra>'}],{...layout(),xaxis:{title:'Approx. GDP share (%)',gridcolor:'#eef2f7'},yaxis:{automargin:true}},{responsive:true});document.getElementById('sectorChart').on('plotly_click',ev=>{isolatedSector=ev.points[0].y;selectedSectors=new Set([isolatedSector]);document.querySelectorAll('.sectorCB').forEach(cb=>cb.checked=cb.value===isolatedSector);updateAll()})}
+function updateTrade(){let t=filtered(trade);Plotly.react('tradeChart',[{x:t.map(d=>d.year),y:t.map(d=>d.exports),name:'Exports',type:'scatter',mode:'lines+markers',line:{color:green,width:3},fill:'tozeroy',opacity:.22},{x:t.map(d=>d.year),y:t.map(d=>d.imports),name:'Imports',type:'scatter',mode:'lines+markers',line:{color:blue,width:3}},{x:t.map(d=>d.year),y:t.map(d=>d.balance),name:'Trade balance',type:'bar',marker:{color:gold},yaxis:'y2'}],{...layout(),yaxis:{title:'Exports / imports ($B)',gridcolor:'#eef2f7'},yaxis2:{title:'Balance ($B)',overlaying:'y',side:'right',showgrid:false},xaxis:{dtick:1,gridcolor:'#eef2f7'}},{responsive:true})}
+function updateFDI(){let f=filtered(fdi);Plotly.react('fdiChart',[{x:f.map(d=>d.year),y:f.map(d=>d.registered),name:'Registered FDI',type:'bar',marker:{color:blue}},{x:f.map(d=>d.year),y:f.map(d=>d.disbursed),name:'Disbursed FDI',type:'bar',marker:{color:green}},{x:f.map(d=>d.year),y:f.map(d=>d.disbursed/d.registered*100),name:'Conversion %',type:'scatter',mode:'lines+markers',line:{color:red,width:3},yaxis:'y2'}],{...layout(),barmode:'group',yaxis:{title:'FDI ($B)',gridcolor:'#eef2f7'},yaxis2:{title:'Disbursed / Registered',ticksuffix:'%',overlaying:'y',side:'right',showgrid:false},xaxis:{dtick:1,gridcolor:'#eef2f7'}},{responsive:true})}
+function calcRisk(tariff){return sectors.filter(d=>selectedSectors.has(d.name)&&d.exports>0).map(d=>({sector:d.name,exports:d.exports,usExposure:d.usExposure,valueRisk:d.exports*d.usExposure*d.sensitivity*(tariff/100),riskScore:Math.round(d.usExposure*d.sensitivity*tariff*10)})).sort((a,b)=>b.valueRisk-a.valueRisk)}
+function updateRisk(){let tariff=+document.getElementById('tariff').value;let r=calcRisk(tariff);Plotly.react('riskChart',[{x:r.map(d=>d.sector),y:r.map(d=>d.valueRisk),type:'bar',name:'Estimated value at risk',marker:{color:r.map(d=>d.valueRisk>10?red:gold)},customdata:r.map(d=>[d.exports,d.usExposure*100]),hovertemplate:'%{x}<br>Value at risk: $%{y:.1f}B<br>Total exports: $%{customdata[0]:.1f}B<br>US exposure: %{customdata[1]:.0f}%<extra></extra>'}],{...layout(),yaxis:{title:'Estimated export value at risk ($B)',gridcolor:'#eef2f7'},xaxis:{automargin:true,tickangle:-20,gridcolor:'#eef2f7'}},{responsive:true});document.getElementById('riskTable').innerHTML=`<table class="table"><thead><tr><th>Sector</th><th>Total exports</th><th>U.S. exposure</th><th>Estimated value at risk</th><th>Risk signal</th></tr></thead><tbody>${r.slice(0,8).map(d=>`<tr><td>${d.sector}</td><td>$${d.exports.toFixed(1)}B</td><td>${(d.usExposure*100).toFixed(0)}%</td><td>$${d.valueRisk.toFixed(1)}B</td><td>${d.valueRisk>10?'<span class="warn">High</span>':d.valueRisk>3?'<span style="color:#b7791f">Moderate</span>':'<span class="good">Low</span>'}</td></tr>`).join('')}</tbody></table>`;updateKPIs()}
+function updateAll(){updateKPIs();updateMacro();updateSectors();updateTrade();updateFDI();updateRisk()}
+initChecks();updateAll();
+</script>
+</body>
+</html>
