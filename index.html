@@ -1,0 +1,519 @@
+
+<h2 class="sr-only">Vietnam Economic Decision Dashboard: Strategic Analysis 2021-2026 — Interactive executive dashboard with cross-filtering across GDP, FDI, credit, peer comparison, sector table, and regional map.</h2>
+<style>
+  .vn-root { font-family: Georgia, 'Times New Roman', serif; background: #f7f4ee; min-height: 600px; }
+  .vn-header { background: #DA251D; border-bottom: 3px solid #c9a000; padding: 14px 20px; position: relative; overflow: hidden; }
+  .vn-header::before { content:''; position:absolute; inset:0; background: repeating-linear-gradient(-55deg,transparent,transparent 18px,rgba(0,0,0,0.05) 18px,rgba(0,0,0,0.05) 36px); }
+  .vn-header-inner { position:relative; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  .vn-title { color:#fff; font-size:15px; font-weight:400; letter-spacing:.5px; margin:0; }
+  .vn-title span { color:#FFCD00; }
+  .vn-sub { color:rgba(255,255,255,0.55); font-size:9px; letter-spacing:2px; text-transform:uppercase; font-style:italic; margin:2px 0 0; }
+  .vn-meta { color:rgba(255,255,255,0.5); font-size:9px; text-align:right; line-height:1.8; }
+  .vn-body { padding: 14px 18px; }
+  .banner { background:rgba(218,37,29,0.07); border:1px solid rgba(218,37,29,0.2); border-radius:3px; padding:6px 12px; margin-bottom:10px; font-size:10px; color:#9e1a14; display:flex; justify-content:space-between; align-items:center; }
+  .banner.hidden { display:none; }
+  .clear-btn { cursor:pointer; font-size:9px; color:#9e1a14; border:1px solid rgba(218,37,29,0.3); border-radius:2px; padding:2px 8px; background:transparent; font-family:inherit; }
+  .kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:12px; }
+  .kpi { background:#fff; border:1px solid #e8e0d4; border-top:3px solid #DA251D; border-radius:3px; padding:10px 8px; text-align:center; }
+  .kpi-val { font-size:18px; font-weight:700; color:#DA251D; }
+  .kpi-lbl { font-size:7px; text-transform:uppercase; letter-spacing:1.5px; color:#8a7060; margin-top:3px; }
+  .kpi-sub { font-size:8px; color:#b0a090; margin-top:1px; }
+  .levers { display:grid; grid-template-columns:1fr 1fr 1fr 1.3fr; gap:10px; margin-bottom:12px; align-items:start; }
+  .lbl { font-size:8px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#8a7060; margin-bottom:5px; }
+  .dd-wrap { position:relative; }
+  .dd-trigger { background:#fff; border:1px solid #e8e0d4; border-radius:3px; padding:7px 11px; cursor:pointer; font-size:12px; display:flex; justify-content:space-between; align-items:center; user-select:none; }
+  .dd-trigger:hover { border-color:#c9a000; }
+  .dd-trigger::after { content:'▾'; font-size:11px; color:#c9a000; }
+  .dd-list { display:none; position:absolute; top:calc(100% + 1px); left:0; right:0; background:#fff; border:1px solid #e8e0d4; border-top:2px solid #DA251D; border-radius:0 0 3px 3px; z-index:300; max-height:180px; overflow-y:auto; box-shadow:0 6px 20px rgba(0,0,0,0.1); }
+  .dd-list.open { display:block; }
+  .dd-item { padding:7px 11px; display:flex; align-items:center; gap:8px; font-size:11px; border-bottom:1px solid #f0ebe4; cursor:pointer; }
+  .dd-item:hover { background:#fdf5f5; }
+  .snap-btns { display:flex; gap:4px; flex-wrap:wrap; }
+  .snap-btn { padding:4px 8px; border-radius:2px; font-size:10px; cursor:pointer; border:1px solid #e8e0d4; background:#fff; color:#4a3728; font-family:inherit; transition:all .15s; }
+  .snap-btn.active { background:#DA251D; color:#fff; border-color:#DA251D; font-weight:700; }
+  .snap-btn.forecast { outline:2px dashed #c9a000; outline-offset:2px; }
+  .score-card { background:#fff; border:1px solid #e8e0d4; border-radius:3px; padding:10px 14px; }
+  .score-bar-track { background:#f0ebe4; border-radius:2px; height:5px; overflow:hidden; margin:5px 0 4px; }
+  .score-bar-fill { height:100%; border-radius:2px; transition:width .5s ease; }
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .chart-card { background:#fff; border:1px solid #e8e0d4; border-radius:3px; padding:12px 12px 6px; }
+  .chart-title { font-size:13px; font-weight:400; color:#1e1208; margin:0 0 2px; }
+  .chart-sub { font-size:8px; color:#8a7060; margin:0 0 8px; padding-bottom:7px; border-bottom:1px solid #f0ebe4; }
+  .bottom-row { display:grid; grid-template-columns:1.3fr 1fr; gap:12px; margin-bottom:12px; }
+  .sector-table { width:100%; border-collapse:collapse; font-size:10px; }
+  .sector-table th { font-size:7px; text-transform:uppercase; letter-spacing:1.5px; font-weight:700; color:#8a7060; padding:4px 6px; text-align:center; border-bottom:2px solid #e8e0d4; }
+  .sector-table th:first-child { text-align:left; }
+  .sector-table td { padding:6px 6px; border-bottom:1px solid #f5f0ea; text-align:center; }
+  .sector-table td:first-child { text-align:left; }
+  .sector-row { cursor:pointer; transition:all .15s; border-left:3px solid transparent; }
+  .sector-row:hover { background:#fdf8f2; }
+  .sector-row.active { background:rgba(218,37,29,0.05); border-left-color:#DA251D; }
+  .sector-row.dimmed { opacity:.3; }
+  .dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:5px; }
+  .momentum-bar { background:#f0ebe4; border-radius:2px; height:4px; width:50px; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .momentum-fill { height:100%; border-radius:2px; }
+  .region-pills { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-bottom:8px; }
+  .region-pill { padding:6px 4px; border-radius:3px; text-align:center; cursor:pointer; transition:all .15s; border:1px solid #e8e0d4; }
+  .region-pill:hover { border-color:#DA251D; }
+  .svgmap { width:100%; max-height:220px; }
+  .footer { text-align:center; font-size:8px; color:#a09080; padding:8px 0; border-top:1px solid #e8e0d4; line-height:1.7; }
+  canvas { display:block; }
+</style>
+
+<div class="vn-root">
+  <header class="vn-header">
+    <div class="vn-header-inner">
+      <div>
+        <h1 class="vn-title">★ Vietnam Economic Decision Dashboard: <span>Strategic Analysis 2021–2026</span></h1>
+        <p class="vn-sub">Cộng hòa xã hội chủ nghĩa Việt Nam · EMBA Market Entry Decision Support</p>
+      </div>
+      <div class="vn-meta">GDP 2025: $514B | Exports: $475B | FDI: $27.6B<br>Growth: 8.02% | Inflation: 3.31% | GDP/Capita: $5,026</div>
+    </div>
+  </header>
+
+  <div class="vn-body">
+    <div id="banner" class="banner hidden">
+      <span id="banner-text"></span>
+      <button class="clear-btn" onclick="clearAll()">✕ Clear All</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="levers">
+      <div class="dd-wrap">
+        <div class="lbl">Industry Sectors</div>
+        <div class="dd-trigger" id="sec-trigger" onclick="toggleDD('sec')"><span id="sec-label">All Sectors</span></div>
+        <div class="dd-list" id="sec-list"></div>
+      </div>
+      <div class="dd-wrap">
+        <div class="lbl">Regions</div>
+        <div class="dd-trigger" id="reg-trigger" onclick="toggleDD('reg')"><span id="reg-label">All Regions</span></div>
+        <div class="dd-list" id="reg-list"></div>
+      </div>
+      <div>
+        <div class="lbl">Quick Snap — Year</div>
+        <div class="snap-btns" id="snap-btns"></div>
+      </div>
+      <div class="score-card" id="score-card"></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <p class="chart-title">Macroeconomic Pulse</p>
+        <p class="chart-sub">GDP Growth vs Inflation · Click a year bar to snap-filter</p>
+        <div style="position:relative;height:220px;"><canvas id="c-macro" role="img" aria-label="GDP growth and inflation line chart 2021 to 2026">GDP growth ranged from 2.58% in 2021 to 8.02% in 2025.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <p class="chart-title">FDI Gap Analysis</p>
+        <p class="chart-sub">Registered (intent) vs Disbursed (realized) · Gap = unrealized commitments</p>
+        <div style="position:relative;height:220px;"><canvas id="c-fdi" role="img" aria-label="FDI registered versus disbursed bar chart 2021 to 2026">FDI disbursed grew from $19.7B in 2021 to $27.6B in 2025.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <p class="chart-title">Credit-to-GDP Ratio</p>
+        <p class="chart-sub">Outstanding credit as % of GDP · 120–140% = optimal range for emerging markets</p>
+        <div style="position:relative;height:220px;"><canvas id="c-credit" role="img" aria-label="Credit to GDP ratio line chart">Credit to GDP ratio rose from 124% in 2021 to 130% in 2025.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <p class="chart-title">Peer Country Growth Comparison</p>
+        <p class="chart-sub">Real GDP growth % · SE Asia peers · IMF WEO · 2026 = forecast</p>
+        <div style="position:relative;height:220px;"><canvas id="c-peer" role="img" aria-label="GDP growth comparison for Vietnam Malaysia Indonesia Thailand Philippines">Vietnam leads SE Asia peers with 8.02% growth in 2025.</canvas></div>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <div class="chart-card">
+        <p class="chart-title">Sector Growth Intelligence</p>
+        <p class="chart-sub">Click a row to filter the entire dashboard · Click again to clear</p>
+        <table class="sector-table"><thead><tr><th>Sector</th><th>Avg Growth</th><th>FDI (B)</th><th>Exports (B)</th><th>Momentum</th></tr></thead><tbody id="sector-tbody"></tbody></table>
+      </div>
+      <div class="chart-card">
+        <p class="chart-title">Regional Investment Map</p>
+        <p class="chart-sub">Click a region to filter the entire dashboard</p>
+        <div class="region-pills" id="region-pills"></div>
+        <svg class="svgmap" viewBox="50 0 160 280" id="vnmap">
+          <rect x="0" y="0" width="300" height="300" fill="#ddeef7"/>
+          <g id="reg-north" class="map-region" data-region="Northern" style="cursor:pointer">
+            <path d="M148,10 L182,12 L192,28 L186,50 L172,65 L158,74 L146,70 L136,54 L128,38 L133,22 Z" fill="#f0ebe0" stroke="#b8ae98" stroke-width="1"/>
+            <text x="160" y="44" text-anchor="middle" font-size="8" font-family="Georgia,serif" fill="#4a3728">Northern</text>
+            <circle cx="155" cy="55" r="2" fill="#8a7060" opacity="0.7"/>
+            <circle cx="168" cy="58" r="1.5" fill="#8a7060" opacity="0.7"/>
+          </g>
+          <g id="reg-central" class="map-region" data-region="Central" style="cursor:pointer">
+            <path d="M158,74 L172,65 L182,80 L178,106 L168,126 L156,140 L146,136 L140,116 L146,96 L146,80 Z" fill="#f0ebe0" stroke="#b8ae98" stroke-width="1"/>
+            <text x="160" y="108" text-anchor="middle" font-size="8" font-family="Georgia,serif" fill="#4a3728">Central</text>
+            <circle cx="158" cy="120" r="2" fill="#8a7060" opacity="0.7"/>
+          </g>
+          <g id="reg-south" class="map-region" data-region="Southern" style="cursor:pointer">
+            <path d="M146,136 L156,140 L163,154 L158,172 L146,186 L130,194 L116,188 L106,174 L110,156 L123,144 L136,138 Z" fill="#f0ebe0" stroke="#b8ae98" stroke-width="1"/>
+            <text x="134" y="168" text-anchor="middle" font-size="8" font-family="Georgia,serif" fill="#4a3728">Southern</text>
+            <circle cx="138" cy="178" r="2.5" fill="#8a7060" opacity="0.7"/>
+            <circle cx="128" cy="180" r="1.5" fill="#8a7060" opacity="0.7"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="footer">
+      Sources: NSO Vietnam (2026 release) · IMF WEO 2025 · Penn Wharton / USITC DataWeb · Vietnam Briefing 2025 · CBRE/Savills 2024<br>
+      2025 = confirmed actuals · 2026 = IMF WEO forecast · * Tariff ETR: Penn Wharton / USITC weighted-average effective rates
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const RAW = [
+  {Y:2021,S:"Manufacturing", R:"Northern",G:2.58,I:1.84,FD:6.1,FR:8.9,C:124,E:38.2,GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Electronics",   R:"Northern",G:2.58,I:1.84,FD:5.2,FR:7.8,C:124,E:52.1,GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Agriculture",   R:"Southern",G:2.58,I:1.84,FD:0.8,FR:1.1,C:124,E:13.2,GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Retail",        R:"Southern",G:2.58,I:1.84,FD:1.2,FR:1.8,C:124,E:4.1, GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Logistics",     R:"Central", G:2.58,I:1.84,FD:1.4,FR:2.0,C:124,E:6.8, GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Textiles",      R:"Southern",G:2.58,I:1.84,FD:1.8,FR:2.6,C:124,E:28.5,GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Real Estate",   R:"Southern",G:2.58,I:1.84,FD:1.5,FR:2.2,C:124,E:0.4, GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Construction",  R:"Northern",G:2.58,I:1.84,FD:0.6,FR:0.9,C:124,E:0.2, GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Financial Svcs",R:"Southern",G:2.58,I:1.84,FD:0.8,FR:1.0,C:124,E:1.2, GDP:363,PC:2985,F:false},
+  {Y:2021,S:"Tourism",       R:"Central", G:2.58,I:1.84,FD:0.4,FR:0.6,C:124,E:0.9, GDP:363,PC:2985,F:false},
+  {Y:2022,S:"Manufacturing", R:"Northern",G:8.12,I:3.15,FD:6.8,FR:8.4,C:126,E:44.1,GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Electronics",   R:"Northern",G:8.12,I:3.15,FD:6.0,FR:8.0,C:126,E:60.2,GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Agriculture",   R:"Southern",G:8.12,I:3.15,FD:0.9,FR:1.2,C:126,E:15.5,GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Retail",        R:"Southern",G:8.12,I:3.15,FD:1.4,FR:2.0,C:126,E:4.8, GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Logistics",     R:"Central", G:8.12,I:3.15,FD:1.6,FR:2.2,C:126,E:7.9, GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Textiles",      R:"Southern",G:8.12,I:3.15,FD:2.0,FR:2.9,C:126,E:32.1,GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Real Estate",   R:"Southern",G:8.12,I:3.15,FD:1.7,FR:2.5,C:126,E:0.5, GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Construction",  R:"Northern",G:8.12,I:3.15,FD:0.7,FR:1.0,C:126,E:0.3, GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Financial Svcs",R:"Southern",G:8.12,I:3.15,FD:0.9,FR:1.1,C:126,E:1.4, GDP:408,PC:3560,F:false},
+  {Y:2022,S:"Tourism",       R:"Central", G:8.12,I:3.15,FD:0.4,FR:0.6,C:126,E:1.2, GDP:408,PC:3560,F:false},
+  {Y:2023,S:"Manufacturing", R:"Northern",G:5.05,I:3.25,FD:6.4,FR:9.6,C:128,E:41.2,GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Electronics",   R:"Northern",G:5.05,I:3.25,FD:5.5,FR:8.8,C:128,E:57.8,GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Agriculture",   R:"Southern",G:5.05,I:3.25,FD:0.9,FR:1.3,C:128,E:14.8,GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Retail",        R:"Southern",G:5.05,I:3.25,FD:1.3,FR:1.9,C:128,E:4.5, GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Logistics",     R:"Central", G:5.05,I:3.25,FD:1.5,FR:2.1,C:128,E:7.4, GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Textiles",      R:"Southern",G:5.05,I:3.25,FD:1.9,FR:2.8,C:128,E:30.4,GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Real Estate",   R:"Southern",G:5.05,I:3.25,FD:1.6,FR:2.3,C:128,E:0.4, GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Construction",  R:"Northern",G:5.05,I:3.25,FD:0.7,FR:1.0,C:128,E:0.2, GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Financial Svcs",R:"Southern",G:5.05,I:3.25,FD:0.8,FR:1.0,C:128,E:1.3, GDP:433,PC:4080,F:false},
+  {Y:2023,S:"Tourism",       R:"Central", G:5.05,I:3.25,FD:0.6,FR:0.8,C:128,E:1.8, GDP:433,PC:4080,F:false},
+  {Y:2024,S:"Manufacturing", R:"Northern",G:7.09,I:3.63,FD:6.9,FR:10.2,C:130,E:45.8,GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Electronics",   R:"Northern",G:7.09,I:3.63,FD:6.2,FR:9.5, C:130,E:64.1,GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Agriculture",   R:"Southern",G:7.09,I:3.63,FD:1.0,FR:1.4, C:130,E:15.9,GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Retail",        R:"Southern",G:7.09,I:3.63,FD:1.4,FR:2.1, C:130,E:5.0, GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Logistics",     R:"Central", G:7.09,I:3.63,FD:1.7,FR:2.4, C:130,E:8.2, GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Textiles",      R:"Southern",G:7.09,I:3.63,FD:2.1,FR:3.1, C:130,E:33.8,GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Real Estate",   R:"Southern",G:7.09,I:3.63,FD:1.8,FR:2.6, C:130,E:0.5, GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Construction",  R:"Northern",G:7.09,I:3.63,FD:0.8,FR:1.1, C:130,E:0.3, GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Financial Svcs",R:"Southern",G:7.09,I:3.63,FD:0.9,FR:1.1, C:130,E:1.5, GDP:476,PC:4700,F:false},
+  {Y:2024,S:"Tourism",       R:"Central", G:7.09,I:3.63,FD:0.7,FR:0.9, C:130,E:2.2, GDP:476,PC:4700,F:false},
+  {Y:2025,S:"Manufacturing", R:"Northern",G:8.02,I:3.31,FD:7.2,FR:10.8,C:130,E:49.5,GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Electronics",   R:"Northern",G:8.02,I:3.31,FD:6.5,FR:10.0,C:130,E:70.2,GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Agriculture",   R:"Southern",G:8.02,I:3.31,FD:1.1,FR:1.5, C:130,E:17.1,GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Retail",        R:"Southern",G:8.02,I:3.31,FD:1.5,FR:2.2, C:130,E:5.5, GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Logistics",     R:"Central", G:8.02,I:3.31,FD:1.8,FR:2.6, C:130,E:8.8, GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Textiles",      R:"Southern",G:8.02,I:3.31,FD:2.2,FR:3.3, C:130,E:36.5,GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Real Estate",   R:"Southern",G:8.02,I:3.31,FD:1.9,FR:2.8, C:130,E:0.5, GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Construction",  R:"Northern",G:8.02,I:3.31,FD:0.9,FR:1.3, C:130,E:0.3, GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Financial Svcs",R:"Southern",G:8.02,I:3.31,FD:1.0,FR:1.2, C:130,E:1.6, GDP:514,PC:5026,F:false},
+  {Y:2025,S:"Tourism",       R:"Central", G:8.02,I:3.31,FD:0.8,FR:1.0, C:130,E:2.8, GDP:514,PC:5026,F:false},
+  {Y:2026,S:"Manufacturing", R:"Northern",G:6.80,I:4.20,FD:7.4,FR:11.0,C:133,E:51.2,GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Electronics",   R:"Northern",G:6.80,I:4.20,FD:6.6,FR:10.2,C:133,E:72.5,GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Agriculture",   R:"Southern",G:6.80,I:4.20,FD:1.1,FR:1.6, C:133,E:17.8,GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Retail",        R:"Southern",G:6.80,I:4.20,FD:1.5,FR:2.3, C:133,E:5.8, GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Logistics",     R:"Central", G:6.80,I:4.20,FD:1.9,FR:2.7, C:133,E:9.1, GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Textiles",      R:"Southern",G:6.80,I:4.20,FD:2.3,FR:3.4, C:133,E:37.8,GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Real Estate",   R:"Southern",G:6.80,I:4.20,FD:2.0,FR:2.9, C:133,E:0.6, GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Construction",  R:"Northern",G:6.80,I:4.20,FD:0.9,FR:1.3, C:133,E:0.3, GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Financial Svcs",R:"Southern",G:6.80,I:4.20,FD:1.0,FR:1.2, C:133,E:1.7, GDP:548,PC:5380,F:true},
+  {Y:2026,S:"Tourism",       R:"Central", G:6.80,I:4.20,FD:0.9,FR:1.1, C:133,E:3.1, GDP:548,PC:5380,F:true},
+];
+const PEERS = [
+  {c:"Vietnam",   col:"#DA251D",d:{2021:2.58,2022:8.12,2023:5.05,2024:7.09,2025:8.02,2026:6.80}},
+  {c:"Malaysia",  col:"#c9a000",d:{2021:3.3, 2022:8.7, 2023:3.7, 2024:5.1, 2025:5.2, 2026:4.5}},
+  {c:"Indonesia", col:"#e08020",d:{2021:3.7, 2022:5.3, 2023:5.0, 2024:5.0, 2025:5.11,2026:5.1}},
+  {c:"Thailand",  col:"#2d7a2d",d:{2021:1.5, 2022:2.6, 2023:1.9, 2024:2.5, 2025:2.4, 2026:2.8}},
+  {c:"Philippines",col:"#4a7ab5",d:{2021:5.7, 2022:7.6, 2023:5.5, 2024:5.7, 2025:5.8, 2026:5.5}},
+];
+const SCOL = {Manufacturing:"#DA251D",Electronics:"#c9a000",Agriculture:"#2d7a2d",Retail:"#4a7ab5",
+              Logistics:"#e08020",Textiles:"#9e1a14",["Real Estate"]:"#6a5acd",Construction:"#708090",
+              ["Financial Svcs"]:"#20b2aa",Tourism:"#cd853f"};
+const RCOL = {Northern:"#DA251D",Central:"#c9a000",Southern:"#2d7a2d"};
+const ALL_S = [...new Set(RAW.map(d=>d.S))];
+const ALL_R = ["Northern","Central","Southern"];
+const ALL_Y = [2021,2022,2023,2024,2025,2026];
+
+let selS = new Set(ALL_S), selR = new Set(ALL_R), snapY = null, selSingle = null, selSingleR = null;
+let charts = {};
+
+function filter() {
+  const yrs = snapY ? new Set([snapY]) : new Set(ALL_Y);
+  return RAW.filter(d => yrs.has(d.Y) && selS.has(d.S) && selR.has(d.R));
+}
+
+function scoreColor(s) { return s>=75?"#2d7a2d":s>=55?"#c9a000":"#DA251D"; }
+
+function calcScore(data) {
+  if (!data.length) return 0;
+  const ag = data.reduce((s,d)=>s+d.G,0)/data.length;
+  const ai = data.reduce((s,d)=>s+d.I,0)/data.length;
+  const af = data.reduce((s,d)=>s+d.FD,0)/data.length;
+  const ae = data.reduce((s,d)=>s+d.E,0)/data.length;
+  const ac = data.reduce((s,d)=>s+d.C,0)/data.length;
+  let sc=0;
+  sc += Math.min(25,(ag/10)*25);
+  sc += ai<2?20:ai<3.5?16:ai<5?10:4;
+  sc += Math.min(20,(af/8)*20);
+  sc += Math.min(20,(ae/60)*20);
+  sc += (ac>=115&&ac<=140)?15:(ac<115?8:6);
+  return Math.round(Math.min(100,sc));
+}
+
+function renderAll() {
+  const data = filter();
+  renderBanner();
+  renderKPIs(data);
+  renderScore(data);
+  renderMacro(data);
+  renderFDI(data);
+  renderCredit(data);
+  renderPeer(data);
+  renderSectorTable(data);
+  renderMap();
+}
+
+function renderBanner() {
+  const b = document.getElementById('banner'), t = document.getElementById('banner-text');
+  const parts = [snapY&&`Year ${snapY}`, selSingle&&`Sector: ${selSingle}`, selSingleR&&`Region: ${selSingleR}`].filter(Boolean);
+  if (parts.length) { b.classList.remove('hidden'); t.textContent = 'Filtered to: ' + parts.join(' · ') + ' — click again to clear'; }
+  else b.classList.add('hidden');
+}
+
+function renderKPIs(data) {
+  if (!data.length) { document.getElementById('kpis').innerHTML='<div style="grid-column:1/-1;text-align:center;color:#8a7060;font-size:11px;padding:16px">No data matches current filters</div>'; return; }
+  const byY = {};
+  data.forEach(d=>{ if(!byY[d.Y]) byY[d.Y]=[]; byY[d.Y].push(d); });
+  const yrs = Object.keys(byY).map(Number).sort();
+  const lat = byY[yrs[yrs.length-1]]||[];
+  const ag = (lat.reduce((s,d)=>s+d.G,0)/lat.length).toFixed(2);
+  const gdp = lat[0]?.GDP||0;
+  const pc = lat[0]?.PC||0;
+  const fd = lat.reduce((s,d)=>s+d.FD,0).toFixed(1);
+  const ex = lat.reduce((s,d)=>s+d.E,0).toFixed(1);
+  const inf = (lat.reduce((s,d)=>s+d.I,0)/lat.length).toFixed(2);
+  const fc = lat[0]?.F;
+  const kdata = [
+    {l:"GDP Growth",    v:`${ag}%`,    s:fc?"Forecast":"Confirmed"},
+    {l:"Nominal GDP",   v:`$${gdp}B`,  s:"USD Billion"},
+    {l:"GDP Per Capita",v:`$${pc.toLocaleString()}`,s:"USD"},
+    {l:"FDI Disbursed", v:`$${fd}B`,   s:"Filtered"},
+    {l:"Exports",       v:`$${ex}B`,   s:"Filtered"},
+    {l:"Inflation",     v:`${inf}%`,   s:"Avg consumer prices"},
+  ];
+  document.getElementById('kpis').innerHTML = kdata.map(k=>`
+    <div class="kpi"><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+}
+
+function renderScore(data) {
+  const s = calcScore(data);
+  const c = scoreColor(s);
+  const lbl = s>=75?"Strong ✓":s>=55?"Moderate ◐":"Caution ✗";
+  document.getElementById('score-card').innerHTML = `
+    <div class="lbl">Market Readiness Score</div>
+    <div style="display:flex;align-items:baseline;gap:6px;margin:4px 0">
+      <span style="font-size:26px;font-weight:700;color:${c}">${s}</span>
+      <span style="font-size:13px;color:${c}">/100</span>
+      <span style="font-size:10px;color:#8a7060;margin-left:2px">${lbl}</span>
+    </div>
+    <div class="score-bar-track"><div class="score-bar-fill" style="width:${s}%;background:${c}"></div></div>
+    <div style="font-size:8px;color:#a09080;line-height:1.5">GDP growth · Inflation control · FDI momentum · Export strength · Credit health</div>`;
+}
+
+function byYear(data, fn) {
+  const m = {};
+  data.forEach(d=>{ if(!m[d.Y]) m[d.Y]={year:d.Y,F:d.F}; fn(m[d.Y],d); });
+  return Object.values(m).sort((a,b)=>a.year-b.year);
+}
+
+function makeChart(id, config) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const ctx = document.getElementById(id);
+  if (ctx) charts[id] = new Chart(ctx, config);
+}
+
+function renderMacro(data) {
+  const rows = byYear(data, (row,d)=>{ row.G=d.G; row.I=d.I; });
+  const labels = rows.map(r=>r.F?`${r.year}*`:String(r.year));
+  makeChart('c-macro',{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Inflation %',data:rows.map(r=>r.I),backgroundColor:'rgba(218,37,29,0.18)',borderColor:'rgba(218,37,29,0.5)',borderWidth:1,yAxisID:'y1',borderRadius:2},
+      {label:'GDP Growth %',data:rows.map(r=>r.G),type:'line',borderColor:'#DA251D',backgroundColor:'rgba(218,37,29,0.1)',pointBackgroundColor:'#DA251D',pointRadius:5,tension:0.3,yAxisID:'y',fill:false,borderWidth:2.5},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,onClick:(e,els)=>{ if(els[0]){const yr=rows[els[0].index].year;snapY=snapY===yr?null:yr;renderAll();} },
+      plugins:{legend:{labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{title:t=>t[0].label}}},
+      scales:{y:{position:'left',ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,0.05)'}},
+              y1:{position:'right',ticks:{font:{size:9}},grid:{drawOnChartArea:false}},
+              x:{ticks:{font:{size:9}}}}}
+  });
+}
+
+function renderFDI(data) {
+  const rows = byYear(data,(row,d)=>{ row.reg=(row.reg||0)+d.FR; row.dis=(row.dis||0)+d.FD; });
+  rows.forEach(r=>{ r.gap=+(r.reg-r.dis).toFixed(2); r.reg=+r.reg.toFixed(2); r.dis=+r.dis.toFixed(2); });
+  const labels = rows.map(r=>r.F?`${r.year}*`:String(r.year));
+  makeChart('c-fdi',{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Registered',data:rows.map(r=>r.reg),backgroundColor:'rgba(158,26,20,0.25)',borderColor:'#9e1a14',borderWidth:1,borderRadius:2},
+      {label:'Disbursed', data:rows.map(r=>r.dis),backgroundColor:'rgba(218,37,29,0.7)',borderRadius:2},
+      {label:'Gap',       data:rows.map(r=>r.gap),type:'line',borderColor:'#4a7ab5',pointBackgroundColor:'#4a7ab5',pointRadius:4,tension:0.3,borderDash:[4,2],borderWidth:2,yAxisID:'y'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,onClick:(e,els)=>{ if(els[0]){const yr=rows[els[0].index].year;snapY=snapY===yr?null:yr;renderAll();} },
+      plugins:{legend:{labels:{font:{size:9},boxWidth:10}}},
+      scales:{y:{ticks:{font:{size:9},callback:v=>`$${v}B`},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:9}}}}}
+  });
+}
+
+function renderCredit(data) {
+  const rows = byYear(data,(row,d)=>{ row.C=d.C; });
+  const labels = rows.map(r=>r.F?`${r.year}*`:String(r.year));
+  makeChart('c-credit',{
+    type:'line',
+    data:{labels,datasets:[{label:'Credit/GDP %',data:rows.map(r=>r.C),borderColor:'#DA251D',backgroundColor:'rgba(218,37,29,0.08)',pointBackgroundColor:'#DA251D',pointRadius:5,tension:0.3,fill:true,borderWidth:2.5}]},
+    options:{responsive:true,maintainAspectRatio:false,onClick:(e,els)=>{ if(els[0]){const yr=rows[els[0].index].year;snapY=snapY===yr?null:yr;renderAll();} },
+      plugins:{legend:{labels:{font:{size:9},boxWidth:10}},
+        annotation:{annotations:{l1:{type:'line',yMin:120,yMax:120,borderColor:'rgba(201,160,0,0.6)',borderWidth:1,borderDash:[4,2]},
+          l2:{type:'line',yMin:140,yMax:140,borderColor:'rgba(218,37,29,0.4)',borderWidth:1,borderDash:[4,2]}}}},
+      scales:{y:{min:110,max:145,ticks:{font:{size:9},callback:v=>`${v}%`},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:9}}}}}
+  });
+}
+
+function renderPeer(data) {
+  const yrs = [...new Set(data.map(d=>d.Y))].sort();
+  const labels = yrs.map(y=>{ const row=RAW.find(d=>d.Y===y); return row?.F?`${y}*`:String(y); });
+  const datasets = PEERS.map(p=>({
+    label:p.c, data:yrs.map(y=>p.d[y]??null), borderColor:p.col,
+    pointBackgroundColor:p.col, pointRadius:p.c==="Vietnam"?6:4,
+    tension:0.3, fill:false, borderWidth:p.c==="Vietnam"?3:1.8,
+    borderDash:p.c==="Vietnam"?undefined:[3,2]
+  }));
+  makeChart('c-peer',{type:'line',data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:9},boxWidth:10}}},
+      scales:{y:{ticks:{font:{size:9},callback:v=>`${v}%`},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:9}}}}}
+  });
+}
+
+function renderSectorTable(data) {
+  const bySec = {};
+  data.forEach(d=>{ if(!bySec[d.S]) bySec[d.S]={s:d.S,g:[],fd:0,ex:0}; bySec[d.S].g.push(d.G); bySec[d.S].fd+=d.FD; bySec[d.S].ex+=d.E; });
+  const rows = Object.values(bySec).map(d=>({s:d.s,ag:+(d.g.reduce((a,b)=>a+b,0)/d.g.length).toFixed(2),fd:+d.fd.toFixed(1),ex:+d.ex.toFixed(1)})).sort((a,b)=>b.ag-a.ag);
+  const tbody = document.getElementById('sector-tbody');
+  tbody.innerHTML = rows.map(r=>{
+    const gc = r.ag>=7?"#2d7a2d":r.ag>=5?"#c9a000":"#DA251D";
+    const isSel = selSingle===r.s, isDim = selSingle&&selSingle!==r.s;
+    return `<tr class="sector-row${isSel?' active':''}${isDim?' dimmed':''}" onclick="toggleSector('${r.s}')">
+      <td><span class="dot" style="background:${SCOL[r.s]||'#888'}"></span>${r.s}</td>
+      <td style="font-weight:700;color:${gc}">${r.ag}%</td>
+      <td>$${r.fd}</td><td>$${r.ex}</td>
+      <td><div class="momentum-bar"><div class="momentum-fill" style="width:${Math.min(100,(r.ag/10)*100)}%;background:${gc}"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderMap() {
+  document.querySelectorAll('.map-region').forEach(g=>{
+    const reg = g.dataset.region;
+    const active = selR.has(reg) && selR.size < 3;
+    const col = RCOL[reg];
+    const path = g.querySelector('path');
+    const txt = g.querySelector('text');
+    if (path) { path.setAttribute('fill', active?col:'#f0ebe0'); path.setAttribute('stroke', active?col:'#b8ae98'); path.setAttribute('stroke-width', active?'2':'1'); path.setAttribute('opacity', active?'0.82':'0.55'); }
+    if (txt)  { txt.setAttribute('fill', active?'#fff':'#4a3728'); txt.setAttribute('font-weight', active?'700':'400'); }
+  });
+  const pills = document.getElementById('region-pills');
+  const data = filter();
+  pills.innerHTML = ALL_R.map(r=>{
+    const rd = data.filter(d=>d.R===r);
+    const fd = rd.reduce((s,d)=>s+d.FD,0).toFixed(1);
+    const ex = rd.reduce((s,d)=>s+d.E,0).toFixed(1);
+    const isAct = selR.has(r) && selR.size<3;
+    return `<div class="region-pill" style="border-color:${isAct?RCOL[r]:'#e8e0d4'};border-top:3px solid ${RCOL[r]};background:${isAct?'rgba(218,37,29,0.04)':'#f7f4ee'}" onclick="toggleRegion('${r}')">
+      <div style="font-size:10px;font-weight:700;color:${RCOL[r]};margin-bottom:2px">${r}</div>
+      <div style="font-size:8px;color:#4a3728">FDI: <strong>$${fd}B</strong></div>
+      <div style="font-size:8px;color:#4a3728">Exp: <strong>$${ex}B</strong></div>
+    </div>`;
+  }).join('');
+}
+
+function initDropdowns() {
+  const sl = document.getElementById('sec-list');
+  sl.innerHTML = ALL_S.map(s=>`<div class="dd-item" onclick="event.stopPropagation();toggleSectorDD('${s}')"><input type="checkbox" id="chk-s-${s}" checked style="accent-color:#DA251D"><span class="dot" style="background:${SCOL[s]||'#888'}"></span>${s}</div>`).join('');
+  const rl = document.getElementById('reg-list');
+  rl.innerHTML = ALL_R.map(r=>`<div class="dd-item" onclick="event.stopPropagation();toggleRegionDD('${r}')"><input type="checkbox" id="chk-r-${r}" checked style="accent-color:#DA251D"><span class="dot" style="background:${RCOL[r]}"></span>${r}</div>`).join('');
+  const sb = document.getElementById('snap-btns');
+  sb.innerHTML = ALL_Y.map(y=>`<button class="snap-btn${y===2026?' forecast':''}" id="snap-${y}" onclick="toggleSnap(${y})">${y}${y===2026?'*':''}</button>`).join('');
+}
+
+function toggleDD(id) {
+  const ids = ['sec','reg'];
+  ids.forEach(i=>{ if(i!==id) document.getElementById(i+'-list').classList.remove('open'); });
+  document.getElementById(id+'-list').classList.toggle('open');
+}
+
+function toggleSectorDD(s) {
+  const cb = document.getElementById('chk-s-'+s);
+  if (selS.has(s)) selS.delete(s); else selS.add(s);
+  cb.checked = selS.has(s);
+  document.getElementById('sec-label').textContent = selS.size===ALL_S.length?'All Sectors':selS.size===0?'None':`${selS.size} Selected`;
+  renderAll();
+}
+
+function toggleRegionDD(r) {
+  const cb = document.getElementById('chk-r-'+r);
+  if (selR.has(r)) selR.delete(r); else selR.add(r);
+  cb.checked = selR.has(r);
+  document.getElementById('reg-label').textContent = selR.size===ALL_R.length?'All Regions':selR.size===0?'None':[...selR].join(', ');
+  renderAll();
+}
+
+function toggleSnap(y) {
+  snapY = snapY===y?null:y;
+  ALL_Y.forEach(yr=>{ const b=document.getElementById('snap-'+yr); if(b){ b.classList.toggle('active',snapY===yr); } });
+  renderAll();
+}
+
+function toggleSector(s) {
+  if (selSingle===s) { selSingle=null; selS=new Set(ALL_S); }
+  else { selSingle=s; selS=new Set([s]); }
+  ALL_S.forEach(sec=>{ const cb=document.getElementById('chk-s-'+sec); if(cb) cb.checked=selS.has(sec); });
+  document.getElementById('sec-label').textContent = selS.size===ALL_S.length?'All Sectors':`${selS.size} Selected`;
+  renderAll();
+}
+
+function toggleRegion(r) {
+  if (selSingleR===r && selR.size===1) { selSingleR=null; selR=new Set(ALL_R); }
+  else { selSingleR=r; selR=new Set([r]); }
+  ALL_R.forEach(reg=>{ const cb=document.getElementById('chk-r-'+reg); if(cb) cb.checked=selR.has(reg); });
+  document.getElementById('reg-label').textContent = selR.size===ALL_R.length?'All Regions':[...selR].join(', ');
+  renderAll();
+}
+
+function clearAll() {
+  snapY=null; selSingle=null; selSingleR=null; selS=new Set(ALL_S); selR=new Set(ALL_R);
+  ALL_Y.forEach(y=>{ const b=document.getElementById('snap-'+y); if(b) b.classList.remove('active'); });
+  ALL_S.forEach(s=>{ const cb=document.getElementById('chk-s-'+s); if(cb) cb.checked=true; });
+  ALL_R.forEach(r=>{ const cb=document.getElementById('chk-r-'+r); if(cb) cb.checked=true; });
+  document.getElementById('sec-label').textContent='All Sectors';
+  document.getElementById('reg-label').textContent='All Regions';
+  renderAll();
+}
+
+document.querySelectorAll('.map-region').forEach(g=>{
+  g.addEventListener('click',()=>toggleRegion(g.dataset.region));
+});
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dd-wrap')){ document.querySelectorAll('.dd-list').forEach(d=>d.classList.remove('open')); }
+});
+
+initDropdowns();
+renderAll();
+</script>
