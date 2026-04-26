@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vietnam Economic Decision Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --flag-red:    #DA251D;
+            --flag-red-dk: #9e1a14;
+            --flag-red-lt: #f7c5c3;
+            --flag-gold:   #c9a000;
+            --flag-gold-dk:#a07800;
+            --bg:   #ffffff;
+            --card:  #ffffff;
+            --ink:   #1e1208;
+            --ink-dim: #8a7060;
+            --line:  #e8e0d4;
+            --shadow: 0 2px 12px rgba(0,0,0,0.07);
+        }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { background:var(--bg); font-family:'Libre Baskerville',serif; color:var(--ink); min-height:100vh;
+               background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); }
+
+        /* HEADER */
+        .header { padding:34px 40px 26px; background:var(--flag-red); border-bottom:5px solid var(--flag-gold); position:relative; overflow:hidden; }
+        .header::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(-55deg,transparent,transparent 22px,rgba(0,0,0,0.06) 22px,rgba(0,0,0,0.06) 44px); }
+        .header-inner { position:relative; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px; }
+        .star-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+        .star { color:var(--flag-gold); font-size:28px; text-shadow:0 0 12px rgba(255,205,0,0.6); }
+        .header h1 { font-family:'IM Fell English',serif; font-size:28px; font-weight:400; letter-spacing:2px; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,0.4); }
+        .header h1 span { color:var(--flag-gold); }
+        .header-sub { margin-top:5px; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,0.6); font-style:italic; }
+        .header-meta { font-size:10px; color:rgba(255,255,255,0.5); letter-spacing:1px; line-height:1.9; text-align:right; }
+
+        /* FILTER ACTIVE BANNER */
+        #filterBanner { display:none; background:rgba(218,37,29,0.06); border:1px solid rgba(218,37,29,0.2); border-radius:3px;
+            padding:8px 14px; margin-bottom:16px; font-size:11px; color:var(--flag-red);
+            display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        #filterBanner.hidden { display:none !important; }
+        #clearFilter { cursor:pointer; font-size:10px; color:var(--flag-red); border:1px solid rgba(218,37,29,0.3);
+            border-radius:3px; padding:3px 10px; background:transparent; font-family:'Libre Baskerville',serif;
+            transition:background .15s; }
+        #clearFilter:hover { background:rgba(218,37,29,0.1); }
+
+        /* WRAP */
+        .wrap { padding:26px 34px; max-width:1560px; margin:auto; }
+        .section-label { font-size:9px; font-weight:700; letter-spacing:3px; text-transform:uppercase;
+            color:var(--flag-red); margin-bottom:12px; padding-left:2px; display:flex; align-items:center; gap:8px; }
+        .section-label::after { content:''; flex:1; height:1px; background:var(--line); }
+
+        /* FILTERS */
+        .filters { display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:20px; margin-bottom:24px; }
+        .filter-group { display:flex; flex-direction:column; gap:7px; position:relative; }
+        .filter-group label { font-size:9px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink-dim); }
+        .multiselect { background:var(--card); border:1px solid var(--line); border-radius:3px; padding:10px 13px;
+            cursor:pointer; font-size:13px; font-family:'Libre Baskerville',serif; color:var(--ink);
+            display:flex; justify-content:space-between; align-items:center; user-select:none; transition:border-color .2s; }
+        .multiselect:hover { border-color:var(--flag-gold-dk); }
+        .multiselect::after { content:'▾'; font-size:14px; color:var(--flag-gold); }
+        .dropdown-content { display:none; position:absolute; top:calc(100% + 2px); left:0; right:0;
+            background:var(--card); border:1px solid var(--line); border-top:2px solid var(--flag-red);
+            border-radius:0 0 3px 3px; z-index:200; max-height:240px; overflow-y:auto; box-shadow:var(--shadow); }
+        .dropdown-content.show { display:block; }
+        .dropdown-item { padding:9px 13px; display:flex; align-items:center; gap:10px; font-size:13px;
+            border-bottom:1px solid rgba(90,26,23,0.3); cursor:pointer; transition:background .12s; }
+        .dropdown-item:last-child { border-bottom:none; }
+        .dropdown-item:hover { background:#fdf5f5; }
+        .dropdown-item input[type="checkbox"] { accent-color:var(--flag-red); cursor:pointer; }
+
+        /* SLIDER */
+        .slider-wrap { display:flex; flex-direction:column; gap:7px; }
+        .slider-label-row { display:flex; justify-content:space-between; align-items:center; }
+        .slider-bounds { font-size:11px; color:var(--ink-dim); }
+        #tariffVal { font-size:20px; font-family:'IM Fell English',serif; color:var(--flag-red); }
+        input[type="range"] { accent-color:var(--flag-red); width:100%; cursor:pointer; }
+        .slider-hint { font-size:10px; color:var(--ink-dim); }
+
+        /* KPIs */
+        .kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:24px; }
+        .kpi { padding:16px 12px; background:var(--card); border:1px solid var(--line); border-top:3px solid var(--flag-red);
+            border-radius:3px; text-align:center; transition:transform .2s, box-shadow .2s; }
+        .kpi:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(218,37,29,0.2); }
+        .kpi .value { font-size:22px; font-weight:700; color:var(--flag-red); font-family:'IM Fell English',serif; }
+        .kpi .label { font-size:8px; text-transform:uppercase; letter-spacing:1.5px; color:var(--ink-dim); margin-top:5px; }
+        .kpi .sub { font-size:9px; color:var(--ink-dim); margin-top:2px; }
+
+        /* GRID */
+        .grid { display:grid; grid-template-columns:1.2fr 1fr; gap:18px; margin-bottom:18px; }
+        .grid-equal { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+        .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; margin-bottom:18px; }
+        .card { background:var(--card); border:1px solid var(--line); border-radius:3px; padding:20px; box-shadow:var(--shadow); }
+        .card h3 { font-family:'IM Fell English',serif; font-weight:400; font-size:15px; color:var(--ink); letter-spacing:.5px; margin-bottom:4px; }
+        .chart-sub { font-size:10px; color:var(--ink-dim); margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+        .wide { grid-column:1 / -1; }
+        .viz { width:100%; height:320px; }
+        .viz-sm { width:100%; height:260px; }
+
+        /* SECTOR MATRIX */
+        .matrix-wrap { overflow-y:auto; max-height:300px; }
+        .matrix-row { display:flex; align-items:center; gap:10px; padding:7px 6px; border-bottom:1px solid rgba(90,26,23,0.25);
+            cursor:pointer; border-radius:2px; transition:background .15s; }
+        .matrix-row:last-child { border-bottom:none; }
+        .matrix-row:hover { background:rgba(218,37,29,0.05); }
+        .matrix-row.active-filter { background:rgba(218,37,29,0.07); border-left:3px solid var(--flag-red); padding-left:4px; }
+        .matrix-row.dimmed { opacity:.35; }
+        .mx-name { font-size:11px; font-weight:700; color:var(--ink); min-width:110px; }
+        .mx-bars { flex:1; display:flex; flex-direction:column; gap:4px; }
+        .mx-bar-row { display:flex; align-items:center; gap:6px; }
+        .mx-bar-label { font-size:9px; color:var(--ink-dim); min-width:52px; text-align:right; }
+        .mx-bar-track { flex:1; height:6px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; }
+        .mx-bar-fill { height:100%; border-radius:3px; transition:width .4s ease; }
+        .mx-val { font-size:9px; font-weight:700; min-width:40px; text-align:right; }
+        .mx-exposure { font-size:9px; font-weight:700; padding:2px 6px; border-radius:2px; min-width:36px; text-align:center; }
+        .exp-hi  { background:rgba(218,37,29,0.2);  color:#f2504a; }
+        .exp-med { background:rgba(255,205,0,0.15); color:var(--flag-gold); }
+        .exp-lo  { background:rgba(100,180,100,0.15); color:#7bc47b; }
+        .matrix-header { display:flex; align-items:center; gap:10px; padding:0 6px 8px; border-bottom:2px solid var(--line); margin-bottom:4px; }
+        .mh-name { font-size:8px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-dim); min-width:110px; }
+        .mh-bars { flex:1; font-size:8px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-dim); }
+        .mh-exp { font-size:8px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-dim); min-width:36px; text-align:center; }
+
+        /* DIVIDER */
+        .divider { text-align:center; color:var(--flag-red); letter-spacing:10px; font-size:12px; margin:6px 0 22px; opacity:.25; }
+
+        /* CITY MAP */
+        .city-panel {
+            background: #fdf8f2; border:1px solid var(--line); border-radius:4px;
+            padding:16px; margin-top:14px; display:none;
+        }
+        .city-panel.show { display:block; }
+        .city-panel-header {
+            display:flex; justify-content:space-between; align-items:flex-start;
+            margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--line);
+        }
+        .city-name { font-family:'IM Fell English',serif; font-size:18px; color:var(--flag-red); }
+        .city-role { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-dim); margin-top:3px; }
+        .city-close { cursor:pointer; font-size:11px; color:var(--ink-dim); border:1px solid var(--line);
+            border-radius:3px; padding:3px 10px; background:transparent; font-family:'Libre Baskerville',serif; }
+        .city-close:hover { background:#fdf5f5; color:var(--flag-red); }
+        .city-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+        .city-stat { text-align:center; }
+        .city-stat .cv { font-size:16px; font-weight:700; color:var(--flag-red); font-family:'IM Fell English',serif; }
+        .city-stat .cl { font-size:8px; text-transform:uppercase; letter-spacing:1.5px; color:var(--ink-dim); margin-top:3px; }
+        .city-sectors { font-size:11px; color:var(--ink-mid); line-height:1.7; }
+        .city-sectors strong { color:var(--ink); }
+        .city-tag { display:inline-block; padding:2px 8px; border-radius:2px; font-size:9px; font-weight:700;
+            letter-spacing:1px; text-transform:uppercase; margin:2px 3px 2px 0; }
+        .tag-port    { background:rgba(74,122,181,0.12); color:#3a6090; }
+        .tag-hi-tech { background:rgba(80,160,80,0.12);  color:#2d6a2d; }
+        .tag-mfg     { background:rgba(218,37,29,0.10);  color:#9e1a14; }
+        .tag-logistics { background:rgba(201,160,0,0.12); color:#7a5800; }
+        .tag-agri    { background:rgba(120,160,80,0.12); color:#4a6830; }
+
+        /* MAP CITY DROPDOWN — overlaid on Leaflet map */
+        .map-control-wrap {
+            position: relative; margin-bottom: 0;
+        }
+        .map-dd-overlay {
+            position: absolute; top: 10px; left: 10px; z-index: 1000;
+            background: white; border: 1px solid var(--line);
+            border-radius: 4px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            min-width: 200px; font-family: 'Libre Baskerville', serif;
+        }
+        .map-dd-trigger {
+            padding: 9px 13px; cursor: pointer; font-size: 13px;
+            color: var(--ink); display: flex; justify-content: space-between;
+            align-items: center; user-select: none; border-radius: 4px;
+            transition: background .15s;
+        }
+        .map-dd-trigger:hover { background: #fdf5f5; }
+        .map-dd-trigger::after { content: '▾'; font-size: 13px; color: var(--flag-gold); margin-left: 10px; }
+        .map-dd-list {
+            display: none; max-height: 280px; overflow-y: auto;
+            border-top: 2px solid var(--flag-red); border-radius: 0 0 4px 4px;
+        }
+        .map-dd-list.show { display: block; }
+        .map-dd-item {
+            padding: 8px 13px; display: flex; align-items: center; gap: 9px;
+            font-size: 12px; border-bottom: 1px solid rgba(90,26,23,0.12);
+            cursor: pointer; transition: background .12s; color: var(--ink);
+        }
+        .map-dd-item:last-child { border-bottom: none; }
+        .map-dd-item:hover { background: #fdf5f5; }
+        .map-dd-item input[type="checkbox"] { accent-color: var(--flag-red); cursor: pointer; }
+        .map-dd-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+        /* LEAFLET MAP */
+        #cityMap { border-radius:3px; z-index:0; }
+        .leaflet-popup-content-wrapper {
+            background:#1e1208; border:1px solid #c9a000; border-radius:3px;
+            font-family:'Libre Baskerville',serif; color:#f5e8c0; font-size:12px;
+        }
+        .leaflet-popup-tip { background:#1e1208; }
+        .leaflet-popup-content { margin:10px 14px; }
+        .city-marker-label {
+            background:transparent; border:none; box-shadow:none;
+            font-family:'Libre Baskerville',serif; font-size:11px;
+            color:#1e1208; font-weight:700; white-space:nowrap;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width:5px; height:5px; }
+        ::-webkit-scrollbar-track { background:#f7f4ee; }
+        ::-webkit-scrollbar-thumb { background:#d0c0b0; border-radius:3px; }
+
+        @media(max-width:1000px) { .grid,.grid-equal,.grid-3,.filters,.kpis { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <div>
+            <div class="star-row"><span class="star">★</span>
+                <h1>Vietnam Economic Analysis <span>2021 – 2026</span></h1>
+            </div>
+            <div class="header-sub">Cộng hòa xã hội chủ nghĩa Việt Nam</div>
+        </div>
+        <div class="header-meta">
+            GDP 2025: $514B &nbsp;|&nbsp; Exports: $475B &nbsp;|&nbsp; FDI Disbursed: $27.6B<br>
+            GDP Growth: 8.02% &nbsp;|&nbsp; Inflation: 3.31% &nbsp;|&nbsp; GDP/Capita: $5,026
+        </div>
+    </div>
+</header>
+
+<main class="wrap">
+    <div class="divider">✦ &nbsp; ✦ &nbsp; ✦</div>
+
+    <!-- ACTIVE FILTER BANNER -->
+    <div id="filterBanner" class="hidden">
+        <span id="filterBannerText"></span>
+        <button id="clearFilter" onclick="clearClickFilter()">✕ Clear Filter</button>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="section-label">Controls</div>
+    <section class="filters">
+        <div class="filter-group">
+            <label>Fiscal Years</label>
+            <div class="multiselect" onclick="toggleDD('yearDD')"><span id="yearLabel">All Years Selected</span></div>
+            <div id="yearDD" class="dropdown-content"></div>
+        </div>
+        <div class="filter-group">
+            <label>Industry Sectors</label>
+            <div class="multiselect" onclick="toggleDD('sectorDD')"><span id="sectorLabel">All Sectors Selected</span></div>
+            <div id="sectorDD" class="dropdown-content"></div>
+        </div>
+        <div class="filter-group">
+            <label>US Tariff on Vietnam &amp; Peers (Simulation)</label>
+            <div class="slider-wrap">
+                <div class="slider-label-row">
+                    <span class="slider-bounds">0%</span>
+                    <span id="tariffVal">15%</span>
+                    <span class="slider-bounds">45%</span>
+                </div>
+                <input type="range" id="tariff" min="0" max="45" value="15">
+                <div class="slider-hint" id="sliderHint">Applies to 2026 forecast only · Select a year to snap to its confirmed ETR</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- KPIs -->
+    <div class="section-label">Key Indicators — 2025 Actuals</div>
+    <section class="kpis" id="kpis"></section>
+
+    <!-- ROW 1: Macro Pulse + Sector Pie -->
+    <div class="section-label">Macroeconomic Profile</div>
+    <section class="grid">
+        <div class="card">
+            <h3>Macroeconomic Pulse</h3>
+            <div class="chart-sub">Click any bar or point to filter dashboard to that year · GDP growth (actual vs. tariff simulation) &amp; inflation</div>
+            <div id="macroChart" class="viz"></div>
+        </div>
+        <div class="card">
+            <h3>Sector Contribution to GDP</h3>
+            <div class="chart-sub">Click any slice to filter dashboard to that sector · 2025 composition</div>
+            <div id="sectorChart" class="viz"></div>
+        </div>
+    </section>
+
+    <!-- ROW 2: GDP per Capita + Credit Expansion -->
+    <div class="section-label">Growth &amp; Financial Context</div>
+    <section class="grid-equal">
+        <div class="card">
+            <h3>GDP per Capita Trajectory</h3>
+            <div class="chart-sub">Actual path vs. government target of $8,500 by 2030 · Click a year point to filter</div>
+            <div id="gdpCapitaChart" class="viz-sm"></div>
+        </div>
+        <div class="card">
+            <h3>Credit Expansion vs. Nominal GDP</h3>
+            <div class="chart-sub">Outstanding credit to economy (USD bn) · 2025: $670B credit / $514B GDP = 130% ratio · Click year to filter</div>
+            <div id="creditChart" class="viz-sm"></div>
+        </div>
+    </section>
+
+    <!-- ROW 3: FDI Gap Analysis (full width) -->
+    <div class="section-label">Foreign Direct Investment</div>
+    <section style="margin-bottom:18px;">
+        <div class="card">
+            <h3>FDI: Registered vs. Disbursed — Gap Analysis <span id="fdiSource" style="font-size:10px;color:var(--ink-dim);font-style:italic;"></span></h3>
+            <div class="chart-sub">Registered = investor intent · Disbursed = realized capital · Gap signals absorption capacity &amp; confidence · Click a year bar to filter · Tariff-adj line applies to 2026</div>
+            <div id="tradeChart" class="viz"></div>
+        </div>
+    </section>
+
+    <!-- ROW 4: Peer Comparison + Sector Matrix -->
+    <div class="section-label">Competitive &amp; Risk Landscape</div>
+    <section class="grid-equal">
+        <div class="card">
+            <h3>SE Asia Peer GDP Comparison <span id="imfStatus" style="font-size:10px;color:var(--ink-dim);font-style:italic;"></span></h3>
+            <div class="chart-sub">Real GDP growth · tariff drag applied to 2026 by country US-export exposure · Click a line to highlight</div>
+            <div id="peerChart" class="viz"></div>
+        </div>
+        <div class="card">
+            <h3>Sector × US Tariff Exposure</h3>
+            <div class="chart-sub">Click any sector row to filter the entire dashboard · GDP share, US revenue exposure &amp; estimated impact at current tariff</div>
+            <div class="matrix-header">
+                <div class="mh-name">Sector</div>
+                <div class="mh-bars">GDP Share &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; US Revenue Exposure</div>
+                <div class="mh-exp">Risk</div>
+            </div>
+            <div class="matrix-wrap" id="sectorMatrix"></div>
+        </div>
+    </section>
+
+    <!-- ROW 5: City Investment Map -->
+    <div class="section-label">City &amp; Regional Investment Map</div>
+    <section style="margin-bottom:28px;">
+        <div class="card">
+            <h3>Vietnam — Major Industrial Hubs &amp; Port Cities</h3>
+            <div class="chart-sub">Click any city marker to explore its industrial profile, key sectors, and market entry suitability · Sources: Vietnam Briefing, CBRE Savills, InCorp Vietnam 2025</div>
+            <div class="map-control-wrap">
+                <div class="map-dd-overlay" id="mapDDWrap">
+                    <div class="map-dd-trigger" id="mapDDTrigger" onclick="toggleMapDD()">
+                        <span id="mapDDLabel">All Cities</span>
+                    </div>
+                    <div class="map-dd-list" id="mapDDList"></div>
+                </div>
+                <div id="cityMap" style="width:100%;height:500px;"></div>
+            </div>
+            <div class="city-panel" id="cityPanel">
+                <div class="city-panel-header">
+                    <div>
+                        <div class="city-name" id="cpName"></div>
+                        <div class="city-role" id="cpRole"></div>
+                    </div>
+                    <button class="city-close" onclick="closeCity()">✕ Close</button>
+                </div>
+                <div class="city-stats" id="cpStats"></div>
+                <div class="city-sectors" id="cpSectors"></div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   DATA
+════════════════════════════════════════════════════════════ */
+const years = [2021,2022,2023,2024,2025,2026];
+const HISTORY_CUTOFF = 2026;
+
+const macroBase = [
+    {year:2021,gdp:2.58,inf:1.84}, {year:2022,gdp:8.12,inf:3.15},
+    {year:2023,gdp:5.05,inf:3.25}, {year:2024,gdp:7.09,inf:3.63},
+    {year:2025,gdp:8.02,inf:3.31}, {year:2026,gdp:6.80,inf:4.20}
+];
+let macroData = macroBase.map(d=>({...d}));
+
+const gdpCapita = {
+    yrs:    [2019,2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030],
+    actual: [2715,2786,2985,3560,4080,4700,5026,null,null,null,null,null]
+};
+const capTargetPath = gdpCapita.yrs.map(y => y>=2025 ? Math.round(5026+(8500-5026)*((y-2025)/5)) : null);
+
+const creditData = {
+    yrs:    [2021,2022,2023,2024,2025],
+    credit: [380, 450, 510, 568, 670],
+    nomGDP: [363, 408, 433, 476, 514]
+};
+
+const fdiDisbursedBase  = [19.7,22.4,23.2,25.4,27.6,29.0];
+const fdiRegisteredBase = [28.5,27.7,36.6,39.4,38.4,40.0];
+const VNM_EXPORTS_2025  = 475;
+const VNM_US_SHARE      = 0.28;
+const VNM_NOMINAL_GDP   = 514;
+
+const sectorData = [
+    {name:'Manufacturing',  share:24.5, usExp:0.38},
+    {name:'Electronics',    share:18.8, usExp:0.42},
+    {name:'Agriculture',    share:10.9, usExp:0.18},
+    {name:'Retail',         share:10.8, usExp:0.04},
+    {name:'Real Estate',    share:7.6,  usExp:0.02},
+    {name:'Construction',   share:6.4,  usExp:0.01},
+    {name:'Logistics',      share:5.2,  usExp:0.22},
+    {name:'Textiles',       share:4.8,  usExp:0.35},
+    {name:'Financial Svcs', share:4.1,  usExp:0.05},
+    {name:'Tourism',        share:2.9,  usExp:0.03}
+];
+
+const PEER_EXPOSURE = {
+    VNM:{usExportGdpShare:0.28,elasticity:0.38},
+    MYS:{usExportGdpShare:0.14,elasticity:0.30},
+    IDN:{usExportGdpShare:0.09,elasticity:0.22},
+    THA:{usExportGdpShare:0.12,elasticity:0.28},
+    PHL:{usExportGdpShare:0.10,elasticity:0.24}
+};
+const PEER_FALLBACK = {
+    VNM:{label:'Vietnam',    color:'#FFCD00', data:{2021:2.58,2022:8.12,2023:5.05,2024:7.09,2025:8.02,2026:6.80}},
+    MYS:{label:'Malaysia',   color:'#DA251D', data:{2021:3.3, 2022:8.7, 2023:3.7, 2024:5.1, 2025:5.2, 2026:4.5}},
+    IDN:{label:'Indonesia',  color:'#f2504a', data:{2021:3.7, 2022:5.3, 2023:5.0, 2024:5.0, 2025:5.11,2026:5.1}},
+    THA:{label:'Thailand',   color:'#c9a000', data:{2021:1.5, 2022:2.6, 2023:1.9, 2024:2.5, 2025:2.4, 2026:2.8}},
+    PHL:{label:'Philippines',color:'#a87d00', data:{2021:5.7, 2022:7.6, 2023:5.5, 2024:5.7, 2025:5.8, 2026:5.5}}
+};
+let peerData        = JSON.parse(JSON.stringify(PEER_FALLBACK));
+
+/* US effective tariff rates on Vietnam imports by year
+   Source: Penn Wharton Budget Model / USITC DataWeb (annual averages)
+   2021–2024: weighted-average ETR from monthly USITC data
+   2025: 20% reciprocal tariff per USTR–Vietnam framework (Oct 2025)
+   2026: free (simulation only — slider unlocked) */
+const HISTORICAL_TARIFFS = {
+    2021: 4.5,   // USITC DataWeb via Penn Wharton; pre-escalation MFN baseline
+    2022: 4.9,   // Penn Wharton monthly avg (range 4.3–5.3%)
+    2023: 4.8,   // Penn Wharton monthly avg; stable MFN period
+    2024: 5.1,   // Penn Wharton; minor category increases
+    2025: 20.0,  // USTR reciprocal tariff framework (Oct 2025); confirmed rate
+    2026: null   // Forecast — slider remains free
+};
+let highlightedPeer = null;   // country label string or null
+
+/* ════════════════════════════════════════════════════════════
+   STYLE CONSTANTS
+════════════════════════════════════════════════════════════ */
+const PALETTE = ['#DA251D','#FFCD00','#9e1a14','#c9a000','#f2504a','#ffe566','#6b0f0b','#a87d00','#ff8078','#fff0a0'];
+const HOVER = {bgcolor:'#1e1208',bordercolor:'#c9a000',font:{color:'#f5e8c0',family:"'Libre Baskerville',serif",size:12}};
+const AXIS  = {gridcolor:'rgba(0,0,0,0.07)',zerolinecolor:'rgba(0,0,0,0.15)',tickfont:{color:'#4a3728',size:10},titlefont:{color:'#4a3728'}};
+const LEG   = {bgcolor:'rgba(255,255,255,0.92)',bordercolor:'#e8e0d4',borderwidth:1,font:{color:'#1e1208',size:10}};
+const BL    = {paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',
+               font:{color:'#1e1208',family:"'Libre Baskerville',serif",size:11},
+               margin:{t:20,l:50,r:16,b:40},xaxis:AXIS,yaxis:AXIS,legend:LEG,hoverlabel:HOVER};
+function pL(ex={}) { return {...BL,...ex,legend:LEG,hoverlabel:HOVER}; }
+
+/* ════════════════════════════════════════════════════════════
+   TARIFF MODEL
+════════════════════════════════════════════════════════════ */
+function gdpDrag(t,code){ const e=PEER_EXPOSURE[code]; return Math.min(e.usExportGdpShare*(t/100)*e.elasticity*100,4.0); }
+function fdiFlight(t,base){ return +(base*(1-0.50/(1+Math.exp(-0.12*(t-22))))).toFixed(2); }
+function exportLoss(t){ return +(VNM_EXPORTS_2025*VNM_US_SHARE*(t/100)*0.60*0.80).toFixed(1); }
+
+/* ════════════════════════════════════════════════════════════
+   CLICK-TO-FILTER STATE
+════════════════════════════════════════════════════════════ */
+let clickFilterYear    = null;   // number or null
+let clickFilterSector  = null;   // string or null
+
+function applyClickFilter(type, value) {
+    // toggle off if same
+    if (type==='year'   && clickFilterYear===value)   { clickFilterYear=null; restoreSlider(); }
+    else if (type==='sector' && clickFilterSector===value) { clickFilterSector=null; }
+    else if (type==='year')  {
+        clickFilterYear=value; clickFilterSector=null;
+        snapSliderToYear(value);
+    }
+    else if (type==='sector') { clickFilterSector=value; clickFilterYear=null; }
+    updateBanner();
+    updateAll();
+}
+
+function snapSliderToYear(year) {
+    const rate = HISTORICAL_TARIFFS[year];
+    const slider = document.getElementById('tariff');
+    const label  = document.getElementById('tariffVal');
+    if (rate !== null && rate !== undefined) {
+        slider.value = Math.round(rate);
+        label.textContent = Math.round(rate) + '%';
+        slider.disabled = true;   // lock — this is a confirmed historical rate
+        slider.style.opacity = '0.5';
+        slider.style.cursor  = 'not-allowed';
+    } else {
+        // 2026 or unknown — unlock slider for simulation
+        restoreSlider();
+    }
+}
+
+function restoreSlider() {
+    const slider = document.getElementById('tariff');
+    slider.disabled = false;
+    slider.style.opacity = '1';
+    slider.style.cursor  = 'pointer';
+}
+
+function clearClickFilter() {
+    clickFilterYear=null; clickFilterSector=null;
+    restoreSlider();
+    updateBanner(); updateAll();
+}
+
+function updateBanner() {
+    const b=document.getElementById('filterBanner');
+    const t=document.getElementById('filterBannerText');
+    if(clickFilterYear!=null) {
+        b.classList.remove('hidden');
+        const hRate = HISTORICAL_TARIFFS[clickFilterYear];
+        const rateNote = hRate !== null && hRate !== undefined
+            ? ` · Tariff slider locked to confirmed ${hRate}% ETR (Penn Wharton / USITC)`
+            : ' · 2026 tariff slider unlocked for simulation';
+        t.textContent=`Filtered to ${clickFilterYear}${rateNote} · Click again or Clear to reset`;
+    } else if(clickFilterSector!=null) {
+        b.classList.remove('hidden');
+        t.textContent=`Dashboard filtered to sector: ${clickFilterSector} — click the same row again or press Clear to reset`;
+    } else {
+        b.classList.add('hidden');
+    }
+}
+
+// Effective active years / sectors — merges dropdown + click filters
+function effectiveYears() {
+    if(clickFilterYear!=null) return [clickFilterYear];
+    return years.filter(y=>activeYears.has(y));
+}
+function effectiveSectors() {
+    if(clickFilterSector!=null) return sectorData.filter(d=>d.name===clickFilterSector);
+    return sectorData.filter(d=>activeSectors.has(d.name));
+}
+
+/* ════════════════════════════════════════════════════════════
+   DROPDOWN STATE
+════════════════════════════════════════════════════════════ */
+let activeYears   = new Set(years);
+let activeSectors = new Set(sectorData.map(s=>s.name));
+
+function toggleDD(id) {
+    const dd=document.getElementById(id);
+    document.querySelectorAll('.dropdown-content').forEach(el=>{if(el.id!==id)el.classList.remove('show');});
+    dd.classList.toggle('show');
+}
+window.addEventListener('click',e=>{
+    if(!e.target.closest('.filter-group')) document.querySelectorAll('.dropdown-content').forEach(d=>d.classList.remove('show'));
+});
+function syncLabel(type) {
+    if(type==='year'){const l=document.getElementById('yearLabel');
+        l.textContent=activeYears.size===years.length?'All Years Selected':activeYears.size===0?'No Years':[...activeYears].sort().join(', ');}
+    else{const l=document.getElementById('sectorLabel');
+        l.textContent=activeSectors.size===sectorData.length?'All Sectors Selected':activeSectors.size===0?'None':`${activeSectors.size} Sectors`;}
+}
+function updateFilters(type,el) {
+    type==='year'?(el.checked?activeYears.add(parseInt(el.value)):activeYears.delete(parseInt(el.value)))
+                 :(el.checked?activeSectors.add(el.value):activeSectors.delete(el.value));
+    syncLabel(type); updateAll();
+}
+
+/* ════════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════════ */
+function initFilters() {
+    document.getElementById('yearDD').innerHTML=years.map(y=>`
+        <div class="dropdown-item"><input type="checkbox" checked value="${y}" onchange="updateFilters('year',this)"><span>${y}</span></div>`).join('');
+    document.getElementById('sectorDD').innerHTML=sectorData.map(s=>`
+        <div class="dropdown-item"><input type="checkbox" checked value="${s.name}" onchange="updateFilters('sector',this)"><span>${s.name}</span></div>`).join('');
+    document.getElementById('tariff').addEventListener('input',e=>{
+        document.getElementById('tariffVal').textContent=e.target.value+'%'; updateAll();
+    });
+}
+
+/* ════════════════════════════════════════════════════════════
+   IMF FETCH
+════════════════════════════════════════════════════════════ */
+async function fetchIMF() {
+    const el=document.getElementById('imfStatus');
+    el.textContent='⟳ Fetching live IMF data…';
+    try {
+        const [g,f]=await Promise.all([
+            fetch('https://www.imf.org/external/datamapper/api/v2/NGDP_RPCH/VNM/MYS/IDN/THA/PHL?periods=2021,2022,2023,2024,2025,2026'),
+            fetch('https://www.imf.org/external/datamapper/api/v2/PCPIPCH/VNM?periods=2021,2022,2023,2024,2025,2026')
+        ]);
+        if(!g.ok||!f.ok) throw new Error('HTTP');
+        const gj=await g.json(),fj=await f.json();
+        const vg=gj?.values?.NGDP_RPCH?.VNM||{},vf=fj?.values?.PCPIPCH?.VNM||{};
+        macroBase.forEach((d,i)=>{
+            if(vg[d.year]!=null) macroBase[i].gdp=+vg[d.year].toFixed(2);
+            if(vf[d.year]!=null) macroBase[i].inf=+vf[d.year].toFixed(2);
+        });
+        const gb=gj?.values?.NGDP_RPCH||{};
+        peerData={};
+        Object.entries(PEER_FALLBACK).forEach(([code,meta])=>{
+            const row=gb[code]||{},merged={};
+            years.forEach(y=>{merged[y]=row[y]!=null?+row[y].toFixed(2):meta.data[y];});
+            peerData[code]={...meta,data:merged};
+        });
+        const now=new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        el.textContent=`✓ IMF live · ${now}`;
+        document.getElementById('fdiSource').textContent='· NSO Vietnam 2026 release';
+    } catch(e) {
+        peerData=JSON.parse(JSON.stringify(PEER_FALLBACK));
+        el.textContent='⚠ Cached data';
+        document.getElementById('fdiSource').textContent='· NSO Vietnam 2026 release';
+    }
+    updateAll();
+}
+
+/* ════════════════════════════════════════════════════════════
+   SECTOR MATRIX (visual bar rows, click-to-filter)
+════════════════════════════════════════════════════════════ */
+function buildMatrix(tariff, cityCtxArg, isFiltArg, nomGDPArg, cityLabelArg) {
+    // Use city-adjusted sector shares if a city filter is active
+    const baseGDP    = nomGDPArg    || VNM_NOMINAL_GDP;
+    const isCity     = isFiltArg    || false;
+    const ctxSectors = (isCity && cityCtxArg)
+        ? sectorData.map(sec => ({...sec, share: cityCtxArg.sectorAgg[sec.name] ?? sec.share}))
+        : sectorData;
+    const s = ctxSectors; // always show all in matrix; dimming handles filter
+    const maxShare   = Math.max(...s.map(d=>d.share));
+    const maxUsRev   = Math.max(...s.map(d=>(d.share/100)*baseGDP*d.usExp));
+    const eff = effectiveSectors().map(d=>d.name);
+
+    document.getElementById('sectorMatrix').innerHTML = s.map(d=>{
+        const gdpContrib = (d.share/100)*baseGDP;
+        const usRev      = gdpContrib*d.usExp;
+        const impact     = usRev*(tariff/100)*0.60*0.80;
+        const maxUsRevLocal = Math.max(...s.map(x=>(x.share/100)*baseGDP*x.usExp));
+        const sharePct   = (d.share/maxShare*100).toFixed(0);
+        const usRevPct   = maxUsRevLocal>0?(usRev/maxUsRevLocal*100).toFixed(0):0;
+        const impPct     = usRev>0?Math.min((impact/usRev*100),100).toFixed(0):0;
+        const expClass   = d.usExp>=0.30?'exp-hi':d.usExp>=0.15?'exp-med':'exp-lo';
+        const expLabel   = d.usExp>=0.30?'High':d.usExp>=0.15?'Med':'Low';
+        const shareBar   = `<div class="mx-bar-row"><div class="mx-bar-label">GDP ${d.share}%</div><div class="mx-bar-track"><div class="mx-bar-fill" style="width:${sharePct}%;background:#DA251D;opacity:.6"></div></div></div>`;
+        const usBar      = `<div class="mx-bar-row"><div class="mx-bar-label">US $${usRev.toFixed(1)}B</div><div class="mx-bar-track"><div class="mx-bar-fill" style="width:${usRevPct}%;background:#FFCD00;opacity:.7"></div></div></div>`;
+        const impBar     = tariff>0?`<div class="mx-bar-row"><div class="mx-bar-label" style="color:#f2504a">−$${impact.toFixed(1)}B</div><div class="mx-bar-track"><div class="mx-bar-fill" style="width:${impPct}%;background:#f2504a;opacity:.8"></div></div></div>`:'';
+        const isActive   = clickFilterSector===d.name;
+        const isDimmed   = clickFilterSector!=null && !isActive;
+        return `<div class="matrix-row${isActive?' active-filter':''}${isDimmed?' dimmed':''}" onclick="applyClickFilter('sector','${d.name}')" title="Click to filter dashboard to ${d.name}">
+            <div class="mx-name">${d.name}</div>
+            <div class="mx-bars">${shareBar}${usBar}${impBar}</div>
+            <div class="mx-exposure"><span class="mx-exposure ${expClass}">${expLabel}</span></div>
+        </div>`;
+    }).join('');
+}
+
+/* ════════════════════════════════════════════════════════════
+   MAIN RENDER
+════════════════════════════════════════════════════════════ */
+function updateAll() {
+    const tariff  = parseInt(document.getElementById('tariff').value);
+    const tYears  = effectiveYears();
+    const kpiGold = tariff===0?'var(--flag-red)':tariff<15?'#c9a000':tariff<30?'#e05020':'#DA251D';
+
+    // ── Resolve active city context ──
+    // visibleCities=null means all; selectedCity means one is highlighted
+    const activeCityNames = visibleCities || CITIES.map(c=>c.name);
+    const cityCtx = (visibleCities && visibleCities.length > 0) ? aggregateCities(visibleCities) : null;
+    const isFiltered = cityCtx !== null;
+
+    // ── Resolve macro data ──
+    // If city-filtered: use city growth rates; else use national macroBase
+    macroData = macroBase.map((d,i) => {
+        const drag = d.year>=HISTORY_CUTOFF ? gdpDrag(tariff,'VNM') : 0;
+        let gdp = d.gdp;
+        if (isFiltered && i < (cityCtx.growthByYear.length)) {
+            gdp = cityCtx.growthByYear[i] ?? d.gdp;
+        }
+        return {...d, gdp: Math.max(0, +(gdp - drag).toFixed(2))};
+    });
+    const m = macroData.filter(d=>tYears.includes(d.year));
+
+    // ── Resolve sector data ──
+    // If city-filtered: override sector shares with city-level shares
+    const rawSectors = isFiltered
+        ? sectorData.map(sec => ({...sec, share: cityCtx.sectorAgg[sec.name] ?? sec.share}))
+        : sectorData;
+    const s = isFiltered
+        ? rawSectors.filter(d=>activeSectors.has(d.name))
+        : effectiveSectors();
+
+    // ── Resolve FDI ──
+    const fdiDisbUsed = isFiltered ? cityCtx.fdiDisb : fdiDisbursedBase;
+    const fdiRegUsed  = isFiltered ? cityCtx.fdiReg  : fdiRegisteredBase;
+    const fdiAdj2025  = isFiltered ? cityCtx.totalFDI2025 : 27.6;
+    const fdiAdj      = fdiFlight(tariff, fdiAdj2025);
+    const disburseAdj = fdiDisbUsed.map(v=>fdiFlight(tariff,v));
+
+    // ── Export / GDP figures ──
+    const nomGDP      = isFiltered ? cityCtx.totalGRDP    : VNM_NOMINAL_GDP;
+    const exports2025 = isFiltered ? cityCtx.totalExports : VNM_EXPORTS_2025;
+    const expLoss     = +(exports2025 * VNM_US_SHARE * (tariff/100) * 0.60 * 0.80).toFixed(1);
+    const expAdj      = +(exports2025 - expLoss).toFixed(1);
+    const gdpCapita   = isFiltered ? cityCtx.avgCapita : 5026;
+    const growth2025  = isFiltered ? cityCtx.growth2025.toFixed(2) : '8.02';
+    const cityLabel   = isFiltered
+        ? (visibleCities.length === 1 ? visibleCities[0] : `${visibleCities.length} Cities`)
+        : 'Vietnam';
+
+    // Update section label to reflect city context
+    const kpiSection = document.querySelector('.section-label');
+    if (kpiSection) {
+        kpiSection.textContent = isFiltered
+            ? `Key Indicators — ${cityLabel}`
+            : 'Key Indicators — 2025 Actuals';
+    }
+
+    /* KPIs — sector-aware when a sector click-filter is active */
+    const avgG=m.length?(m.reduce((a,b)=>a+b.gdp,0)/m.length).toFixed(1):'—';
+    const avgI=m.length?(m.reduce((a,b)=>a+b.inf,0)/m.length).toFixed(1):'—';
+
+    if (clickFilterSector != null) {
+        // ── Sector-level KPIs ──
+        // Find the sector object
+        const sec = sectorData.find(d=>d.name===clickFilterSector);
+        if (sec) {
+            // GDP contribution: sector share of $514B nominal GDP
+            const secGDP        = +((sec.share/100)*VNM_NOMINAL_GDP).toFixed(1);
+            // US-bound export revenue this sector generates
+            const secUSRevenue  = +((secGDP*sec.usExp)).toFixed(1);
+            // Tariff revenue impact on this sector
+            const secTariffHit  = +(secUSRevenue*(tariff/100)*0.60*0.80).toFixed(1);
+            const secNetRevenue = +(secUSRevenue-secTariffHit).toFixed(1);
+            // FDI attribution: proxy by sector GDP share of total disbursed FDI
+            const secFDI        = +((sec.share/100)*fdiAdj).toFixed(1);
+            const secFDIBase    = +((sec.share/100)*27.6).toFixed(1);
+            // Exposure label
+            const expLabel      = sec.usExp>=0.30?'High':sec.usExp>=0.15?'Moderate':'Low';
+            const expColor      = sec.usExp>=0.30?'#DA251D':sec.usExp>=0.15?'#c9a000':'#2d6a2d';
+
+            document.getElementById('kpis').innerHTML=`
+                <div class="kpi" style="border-top-color:var(--flag-red)">
+                    <div class="value">${sec.share}%</div>
+                    <div class="label">Share of GDP</div>
+                    <div class="sub">${clickFilterSector}</div>
+                </div>
+                <div class="kpi">
+                    <div class="value">$${secGDP}B</div>
+                    <div class="label">GDP Contribution</div>
+                    <div class="sub">of $514B national total</div>
+                </div>
+                <div class="kpi">
+                    <div class="value" style="color:${kpiGold}">$${secFDI}B</div>
+                    <div class="label">Est. FDI Attributed</div>
+                    <div class="sub">Baseline $${secFDIBase}B</div>
+                </div>
+                <div class="kpi">
+                    <div class="value">$${secUSRevenue}B</div>
+                    <div class="label">US Export Revenue</div>
+                    <div class="sub">${(sec.usExp*100).toFixed(0)}% of sector GDP exposed</div>
+                </div>
+                <div class="kpi">
+                    <div class="value" style="color:${kpiGold}">$${secNetRevenue}B</div>
+                    <div class="label">Net US Revenue (adj.)</div>
+                    <div class="sub">−$${secTariffHit}B at ${tariff}% tariff</div>
+                </div>
+                <div class="kpi">
+                    <div class="value" style="color:${expColor}">${expLabel}</div>
+                    <div class="label">US Tariff Exposure</div>
+                    <div class="sub">${(sec.usExp*100).toFixed(0)}% US-bound</div>
+                </div>
+            `;
+        }
+    } else {
+        // ── National / City-level KPIs ──
+        document.getElementById('kpis').innerHTML=`
+            <div class="kpi"><div class="value">${growth2025}%</div><div class="label">GDP Growth 2025</div><div class="sub">${isFiltered ? cityLabel + ' GRDP' : 'NSO confirmed'}</div></div>
+            <div class="kpi"><div class="value">$${nomGDP}B</div><div class="label">${isFiltered ? 'Combined GRDP' : 'Nominal GDP 2025'}</div><div class="sub">${isFiltered ? cityLabel : '32nd globally'}</div></div>
+            <div class="kpi"><div class="value">$${gdpCapita.toLocaleString()}</div><div class="label">GDP per Capita</div><div class="sub">${isFiltered ? cityLabel : 'Target $8,500 by 2030'}</div></div>
+            <div class="kpi"><div class="value" style="color:${kpiGold}">$${fdiAdj.toFixed(1)}B</div><div class="label">FDI Disbursed (adj.)</div><div class="sub">Baseline $${fdiAdj2025.toFixed(1)}B</div></div>
+            <div class="kpi"><div class="value" style="color:${kpiGold}">$${expAdj}B</div><div class="label">Export Revenue (adj.)</div><div class="sub">−$${expLoss}B at ${tariff}%</div></div>
+            <div class="kpi"><div class="value">${avgG}%</div><div class="label">Avg Growth (selected)</div><div class="sub">Avg Inflation ${avgI}%</div></div>
+        `;
+    }
+
+    /* ── CHART 1: Macro Pulse — click year to filter ── */
+    const histY    = m.filter(d=>d.year<HISTORY_CUTOFF);
+    const simY     = m.filter(d=>d.year>=HISTORY_CUTOFF);
+    const baseSimY = macroBase.filter(d=>tYears.includes(d.year)&&d.year>=HISTORY_CUTOFF);
+    const bridge   = macroBase.find(d=>d.year===HISTORY_CUTOFF-1)||macroBase[macroBase.length-2];
+
+    const macroDiv = document.getElementById('macroChart');
+    const toStr = y => String(y);
+    Plotly.react('macroChart',[
+        {x:histY.map(d=>toStr(d.year)),y:histY.map(d=>d.gdp),name:'Actual GDP (2021–2025)',
+         type:'scatter',mode:'lines+markers',line:{color:'#DA251D',width:3},
+         marker:{color:'#DA251D',size:8},
+         hovertemplate:'<b>Actual GDP Growth</b><br>%{x}: %{y:.2f}%<extra></extra>'},
+        {x:[toStr(bridge.year),...baseSimY.map(d=>toStr(d.year))],y:[bridge.gdp,...baseSimY.map(d=>d.gdp)],
+         name:'Baseline Forecast (no tariff)',type:'scatter',mode:'lines+markers',
+         line:{color:'rgba(255,205,0,0.3)',width:2,dash:'dash'},
+         marker:{color:'rgba(255,205,0,0.3)',size:5,symbol:'circle-open'},
+         hovertemplate:'<b>Baseline Forecast</b><br>%{x}: %{y:.2f}% (no tariff)<extra></extra>'},
+        {x:[toStr(bridge.year),...simY.map(d=>toStr(d.year))],y:[bridge.gdp,...simY.map(d=>d.gdp)],
+         name:`Simulated GDP (${tariff}% tariff)`,type:'scatter',mode:'lines+markers',
+         line:{color:'#FFCD00',width:3},marker:{color:'#FFCD00',size:8,symbol:'diamond'},
+         hovertemplate:'<b>Tariff Simulation</b><br>%{x}: %{y:.2f}% at '+tariff+'% tariff<extra></extra>'},
+        {x:m.map(d=>toStr(d.year)),y:m.map(d=>d.inf),name:'Inflation %',type:'bar',
+         marker:{color:'rgba(218,37,29,0.2)',line:{color:'rgba(218,37,29,0.5)',width:1}},
+         hovertemplate:'<b>Inflation</b><br>%{x}: %{y:.2f}%<extra></extra>'}
+    ],pL({
+        annotations:[
+            ...(isFiltered ? [{
+                x:0.01, y:0.97, xref:'paper', yref:'paper', xanchor:'left',
+                text:`Showing: ${cityLabel} · GRDP growth`,
+                showarrow:false,
+                font:{color:'#DA251D', size:9, family:"'Libre Baskerville',serif"}
+            }] : []),
+            ...(tariff>0 && simY.length ? [{
+                x:0.99, y:0.05, xref:'paper', yref:'paper', xanchor:'right',
+                text:`GDP drag: −${gdpDrag(tariff,'VNM').toFixed(2)}pp`,
+                showarrow:false,
+                font:{color:'#DA251D', size:9, family:"'Libre Baskerville',serif"}
+            }] : [])
+        ]
+    }));
+
+    // Click handler — year filter
+    macroDiv.removeAllListeners && macroDiv.removeAllListeners('plotly_click');
+    macroDiv.on('plotly_click',data=>{
+        const pt=data.points[0]; if(pt&&pt.x!=null){ const yr=parseInt(pt.x); if(years.includes(yr)) applyClickFilter('year',yr); }
+    });
+
+    /* ── CHART 2: Sector Pie — click slice to filter ── */
+    const pieDiv=document.getElementById('sectorChart');
+    Plotly.react('sectorChart',[{
+        values:s.map(d=>d.share),labels:s.map(d=>d.name),type:'pie',hole:0.40,
+        marker:{colors:PALETTE,line:{color:'#1a0b0a',width:2}},
+        textfont:{color:'#f5e8c0',size:10},
+        outsidetextfont:{color:'#f5e8c0',size:10},
+        insidetextfont:{color:'#1a0b0a',size:10},
+        hovertemplate:'<b>%{label}</b><br>Share: %{value}%<extra></extra>',
+        pull: s.map(d=>clickFilterSector===d.name?0.08:0)
+    }],pL({margin:{t:10,l:10,r:10,b:10}}));
+    pieDiv.removeAllListeners && pieDiv.removeAllListeners('plotly_click');
+    pieDiv.on('plotly_click',data=>{
+        const pt=data.points[0]; if(pt) applyClickFilter('sector',pt.label);
+    });
+
+    /* ── CHART 3: GDP per Capita ── */
+    const capDiv=document.getElementById('gdpCapitaChart');
+    // When city-filtered: show a horizontal reference line for the city's per-capita value
+    const capTraces = isFiltered ? [
+        {x:gdpCapita.yrs,y:gdpCapita.actual,name:'Vietnam National',type:'scatter',mode:'lines',
+         line:{color:'rgba(218,37,29,0.25)',width:2,dash:'dot'},
+         hovertemplate:'<b>Vietnam GDP/Capita</b><br>%{x}: $%{y:,}<extra></extra>',connectgaps:false},
+        {x:[2019,2025],y:[gdpCapita,gdpCapita],
+         name:`${cityLabel} (2025 est.)`,type:'scatter',mode:'lines+markers',
+         line:{color:'#DA251D',width:3},marker:{color:'#DA251D',size:8},
+         hovertemplate:`<b>${cityLabel} GDP/Capita</b><br>2025 est: $${gdpCapita.toLocaleString()}<extra></extra>`},
+        {x:[2025],y:[gdpCapita],name:'City Level',type:'scatter',mode:'markers+text',
+         marker:{color:'#DA251D',size:12,symbol:'diamond'},
+         text:[`$${gdpCapita.toLocaleString()}`],textposition:'top center',
+         textfont:{color:'#DA251D',size:10},showlegend:false,
+         hovertemplate:`<b>${cityLabel}</b><br>$${gdpCapita.toLocaleString()}<extra></extra>`},
+        {x:[2030],y:[8500],name:'$8,500 National Target',type:'scatter',mode:'markers+text',
+         marker:{color:'#c9a000',size:10,symbol:'star'},
+         text:['$8,500'],textposition:'top center',textfont:{color:'#c9a000',size:9},
+         hovertemplate:'<b>Government Target 2030</b><br>$8,500<extra></extra>'}
+    ] : [
+        {x:gdpCapita.yrs,y:gdpCapita.actual,name:'Actual GDP/Capita',type:'scatter',mode:'lines+markers',
+         line:{color:'#DA251D',width:3},marker:{color:'#DA251D',size:6},
+         hovertemplate:'<b>GDP per Capita</b><br>%{x}: $%{y:,}<extra></extra>',connectgaps:false},
+        {x:gdpCapita.yrs,y:capTargetPath,name:'Target Path to 2030',type:'scatter',mode:'lines',
+         line:{color:'rgba(255,205,0,0.4)',width:2,dash:'dash'},
+         hovertemplate:'<b>Target Path</b><br>%{x}: $%{y:,}<extra></extra>'},
+        {x:[2030],y:[8500],name:'$8,500 Target (2030)',type:'scatter',mode:'markers+text',
+         marker:{color:'#FFCD00',size:12,symbol:'star'},
+         text:['$8,500'],textposition:'top center',textfont:{color:'#FFCD00',size:9},
+         hovertemplate:'<b>Government Target 2030</b><br>$8,500<extra></extra>'}
+    ];
+    Plotly.react('gdpCapitaChart', capTraces,
+        pL({yaxis:{...AXIS,title:{text:'USD',font:{color:'#4a3728',size:9}}},
+            margin:{t:10,l:55,r:16,b:35},
+            annotations: isFiltered ? [{
+                x:0.99,y:0.97,xref:'paper',yref:'paper',xanchor:'right',
+                text:`${cityLabel}: $${gdpCapita.toLocaleString()} vs Vietnam avg $5,026`,
+                showarrow:false,font:{color:'#DA251D',size:9,family:"'Libre Baskerville',serif"}
+            }] : []
+        }));
+    capDiv.removeAllListeners && capDiv.removeAllListeners('plotly_click');
+    capDiv.on('plotly_click',data=>{
+        const pt=data.points[0];
+        if(pt&&pt.x!=null){ const yr=parseInt(pt.x); if(years.includes(yr)) applyClickFilter('year',yr); }
+    });
+
+    /* ── CHART 4: Credit Expansion / City GRDP context ── */
+    const credDiv=document.getElementById('creditChart');
+    if (isFiltered) {
+        // City view: show city GRDP growth vs national GDP for context
+        const cityGrowthYrs = years.slice(0,5); // 2021-2025
+        const cityGRDPVals  = cityCtx.growthByYear.map((g,i) => {
+            // reconstruct GRDP level from growth rates starting from 2021 base
+            return null; // we'll just show bar chart of city FDI ratio instead
+        });
+        // Show city GRDP as % of national GDP per year — meaningful context
+        const cityGRDPShare = cityCtx.fdiDisb.map((v,i)=>+(v/fdiDisbursedBase[i]*100).toFixed(1));
+        const cityGRDPYrs   = years.filter((_,i)=>tYears.includes(years[i]));
+        const cityShareFiltered = cityGRDPShare.filter((_,i)=>tYears.includes(years[i]));
+        const natFDIFiltered    = fdiDisbursedBase.filter((_,i)=>tYears.includes(years[i]));
+        const cityFDIFiltered   = cityCtx.fdiDisb.filter((_,i)=>tYears.includes(years[i]));
+        Plotly.react('creditChart',[
+            {x:cityGRDPYrs.map(String),y:natFDIFiltered,name:'National FDI Disbursed',type:'bar',
+             marker:{color:'rgba(218,37,29,0.2)',line:{color:'rgba(218,37,29,0.5)',width:1.5}},
+             hovertemplate:'<b>National FDI</b><br>%{x}: $%{y}bn<extra></extra>'},
+            {x:cityGRDPYrs.map(String),y:cityFDIFiltered,name:`${cityLabel} FDI`,type:'bar',
+             marker:{color:'rgba(218,37,29,0.75)'},
+             hovertemplate:`<b>${cityLabel} FDI</b><br>%{x}: $%{y}bn<extra></extra>`},
+            {x:cityGRDPYrs.map(String),y:cityShareFiltered,name:'City Share of National FDI (%)',
+             type:'scatter',mode:'lines+markers',yaxis:'y2',
+             line:{color:'#c9a000',width:2.5},marker:{color:'#c9a000',size:7},
+             hovertemplate:'<b>City FDI Share</b><br>%{x}: %{y:.1f}% of national<extra></extra>'}
+        ],pL({barmode:'group',
+            yaxis:{...AXIS,title:{text:'FDI USD bn',font:{color:'#4a3728',size:9}}},
+            yaxis2:{...AXIS,title:{text:'Share %',font:{color:'#c9a000',size:9}},overlaying:'y',side:'right',showgrid:false},
+            margin:{t:10,l:55,r:55,b:35},
+            annotations:[{x:0.99,y:0.97,xref:'paper',yref:'paper',xanchor:'right',
+                text:`${cityLabel} share of national FDI`,showarrow:false,
+                font:{color:'#8a7060',size:9,family:"'Libre Baskerville',serif"}}]}));
+    } else {
+        const credY=creditData.yrs.filter(y=>tYears.includes(y)||tYears.length===0||!years.includes(y));
+        const credC=creditData.credit.filter((_,i)=>tYears.includes(creditData.yrs[i])||!years.includes(creditData.yrs[i]));
+        const credG=creditData.nomGDP.filter((_,i)=>tYears.includes(creditData.yrs[i])||!years.includes(creditData.yrs[i]));
+        Plotly.react('creditChart',[
+            {x:credY.map(String),y:credC,name:'Outstanding Credit (USD bn)',type:'bar',
+             marker:{color:'rgba(218,37,29,0.35)',line:{color:'rgba(218,37,29,0.7)',width:1.5}},
+             hovertemplate:'<b>Credit to Economy</b><br>%{x}: $%{y}bn<extra></extra>'},
+            {x:credY.map(String),y:credG,name:'Nominal GDP (USD bn)',type:'scatter',mode:'lines+markers',
+             line:{color:'#FFCD00',width:2.5},marker:{color:'#FFCD00',size:7},
+             hovertemplate:'<b>Nominal GDP</b><br>%{x}: $%{y}bn<extra></extra>'}
+        ],pL({yaxis:{...AXIS,title:{text:'USD bn',font:{color:'#4a3728',size:9}}},
+             margin:{t:10,l:55,r:16,b:35},
+             annotations:[{x:0.99,y:0.97,xref:'paper',yref:'paper',xanchor:'right',
+                 text:'2025 Credit/GDP ratio: 130% · +17.9% YoY',showarrow:false,
+                 font:{color:'#8a7060',size:9,family:"'Libre Baskerville',serif"}}]}));
+    }
+    credDiv.removeAllListeners && credDiv.removeAllListeners('plotly_click');
+    credDiv.on('plotly_click',data=>{
+        const pt=data.points[0];
+        if(pt&&pt.x!=null){ const yr=parseInt(pt.x); if(years.includes(yr)) applyClickFilter('year',yr); }
+    });
+
+    /* ── CHART 5: FDI Gap Analysis ── */
+    const disbF = fdiDisbUsed.filter((_,i)=>tYears.includes(years[i]));
+    const regF  = fdiRegUsed.filter((_,i)=>tYears.includes(years[i]));
+    const adjF  = disburseAdj.filter((_,i)=>tYears.includes(years[i]));
+    const gapF  = regF.map((r,i)=>+(r-disbF[i]).toFixed(1));
+    const fdiDiv=document.getElementById('tradeChart');
+    Plotly.react('tradeChart',[
+        {x:tYears.map(String),y:regF,name:'Registered FDI',type:'bar',
+         marker:{color:'rgba(158,26,20,0.4)',line:{color:'#9e1a14',width:1.5}},
+         hovertemplate:'<b>Registered FDI</b><br>%{x}: $%{y}bn<extra></extra>'},
+        {x:tYears.map(String),y:disbF,name:'Disbursed FDI (baseline)',type:'bar',
+         marker:{color:'rgba(218,37,29,0.8)'},
+         hovertemplate:'<b>Disbursed FDI</b><br>%{x}: $%{y}bn<extra></extra>'},
+        {x:tYears.map(String),y:adjF,name:`Disbursed (${tariff}% tariff-adj)`,type:'scatter',mode:'lines+markers',
+         line:{color:'#FFCD00',width:2.5,dash:'dot'},marker:{color:'#FFCD00',size:7},
+         hovertemplate:'<b>Tariff-Adjusted FDI</b><br>%{x}: $%{y}bn<extra></extra>'},
+        {x:tYears.map(String),y:gapF,name:'Registered–Disbursed Gap',type:'scatter',mode:'lines+markers',
+         line:{color:'rgba(162,200,250,0.7)',width:2},marker:{color:'rgba(162,200,250,0.7)',size:6,symbol:'square'},
+         hovertemplate:'<b>Intent–Reality Gap</b><br>%{x}: $%{y}bn<br>Higher = unrealized commitments<extra></extra>'}
+    ],pL({barmode:'group',yaxis:{...AXIS,title:{text:'USD bn',font:{color:'#4a3728',size:9}}},
+        annotations:[{x:0.01,y:0.97,xref:'paper',yref:'paper',xanchor:'left',
+            text: isFiltered ? `${cityLabel} FDI` : 'National FDI · NSO Vietnam 2026',
+            showarrow:false,font:{color:'#8a7060',size:9,family:"'Libre Baskerville',serif"}},
+            ...(tariff>0?[{x:0.99,y:0.97,xref:'paper',yref:'paper',xanchor:'right',
+            text:`Capital flight est.: −${(((fdiAdj2025-fdiFlight(tariff,fdiAdj2025))/fdiAdj2025)*100).toFixed(1)}% at ${tariff}%`,
+            showarrow:false,font:{color:'#f2504a',size:9,family:"'Libre Baskerville',serif"}}]:[])]}));
+    fdiDiv.removeAllListeners && fdiDiv.removeAllListeners('plotly_click');
+    fdiDiv.on('plotly_click',data=>{
+        const pt=data.points[0]; if(pt&&pt.x!=null){ const yr=parseInt(pt.x); if(years.includes(yr)) applyClickFilter('year',yr); }
+    });
+
+    /* ── CHART 6: Peer Comparison ── */
+    const peerDiv = document.getElementById('peerChart');
+    const tYearsStr = tYears.map(String); // category axis needs string labels
+    const peerTraces = Object.entries(peerData).flatMap(([code,p])=>{
+        const drag      = gdpDrag(tariff,code);
+        const adjY      = tYears.map(y=>{const b=p.data[y]??null;if(b==null)return null;return +(b-(y>=HISTORY_CUTOFF?Math.min(drag,4):0)).toFixed(2);});
+        const isHL      = highlightedPeer===null || highlightedPeer===p.label;
+        const lineW     = highlightedPeer===p.label ? (code==='VNM'?5:3.5) : (code==='VNM'?4:2);
+        const markerSz  = highlightedPeer===p.label ? (code==='VNM'?12:9) : (code==='VNM'?9:6);
+        const opacity   = highlightedPeer===null ? 1 : (highlightedPeer===p.label ? 1 : 0.12);
+        return [
+            // faint baseline (dotted)
+            {x:tYearsStr,y:tYears.map(y=>p.data[y]??null),type:'scatter',mode:'lines',
+             line:{color:p.color,width:1,dash:'dot'},
+             opacity: highlightedPeer===null ? 0.22 : (highlightedPeer===p.label ? 0.35 : 0.05),
+             showlegend:false,
+             hovertemplate:`<b>${p.label} baseline</b><br>%{x}: %{y:.2f}%<extra></extra>`},
+            // main adjusted line
+            {x:tYearsStr,y:adjY,name:p.label,type:'scatter',mode:'lines+markers',
+             opacity,
+             line:{color:p.color,width:lineW},
+             marker:{color:p.color,size:markerSz,
+                     line: highlightedPeer===p.label ? {color:'#1e1208',width:1.5} : {width:0}},
+             hovertemplate:`<b>${p.label}</b><br>%{x}: %{y:.2f}%<br>Drag: −${drag.toFixed(2)}pp<extra></extra>`}
+        ];
+    });
+    const rank26=Object.entries(peerData)
+        .map(([code,p])=>({l:p.label,v:+((p.data[2026]??p.data[2025])-Math.min(gdpDrag(tariff,code),4)).toFixed(2)}))
+        .sort((a,b)=>b.v-a.v);
+    const hlNote = highlightedPeer ? `Highlighting: ${highlightedPeer} · Click legend again to clear` : 'Click a country in the legend to highlight';
+    Plotly.react('peerChart',peerTraces,pL({
+        yaxis:{...AXIS,title:{text:'Real GDP Growth %',font:{color:'#4a3728',size:9}}},
+        margin:{t:20,l:50,r:16,b:tariff>0?52:40},
+        annotations:[
+            {x:0.01,y:0.97,xref:'paper',yref:'paper',xanchor:'left',
+             text:`Source: IMF WEO  ·  ${hlNote}`,
+             showarrow:false,font:{color: highlightedPeer?'#DA251D':'#8a7060',size:8,family:"'Libre Baskerville',serif"}},
+            ...(tariff>0?[{x:0.5,y:-0.13,xref:'paper',yref:'paper',xanchor:'center',
+                text:`2026 ranking at ${tariff}% tariff: `+rank26.map((r,i)=>`${i+1}. ${r.l} ${r.v}%`).join(' · '),
+                showarrow:false,font:{color:'#4a3728',size:8,family:"'Libre Baskerville',serif"}}]:[])
+        ]
+    }));
+
+    // Intercept legend clicks — prevent default hide/show, use highlight state instead
+    peerDiv.removeAllListeners && peerDiv.removeAllListeners('plotly_legendclick');
+    peerDiv.on('plotly_legendclick', data => {
+        const clicked = data.data[data.curveNumber]?.name;
+        if (!clicked) return false;
+        // toggle: clicking the already-highlighted country clears it
+        highlightedPeer = (highlightedPeer === clicked) ? null : clicked;
+        updateAll();
+        return false;  // prevents Plotly's default hide/show behaviour
+    });
+
+    /* ── SECTOR MATRIX ── */
+    buildMatrix(tariff);
+}
+
+/* ════════════════════════════════════════════════════════════
+   CITY MAP DATA
+   Sources: Vietnam Briefing 2025, CBRE/Savills Industrial Report 2024,
+            InCorp Vietnam Industrial Zones 2025, Cosmo Sourcing 2025
+════════════════════════════════════════════════════════════ */
+const CITIES = [
+    {
+        name: "Ho Chi Minh City", shortName: "HCMC",
+        lat: 10.8231, lng: 106.6297,
+        role: "Southern Economic Capital \u00b7 Commercial & Manufacturing Hub",
+        region: "South", type: "mega",
+        tags: ["port","mfg","logistics","hi-tech"],
+        stats: [
+            {v:"89%",  l:"Industrial Occupancy"},
+            {v:"$175", l:"Land Rent (USD/m\u00b2)"},
+            {v:"$1.2T",l:"Regional GDP Contrib."},
+            {v:"30+",  l:"Active Industrial Parks"}
+        ],
+        sectors: "Electronics, Garments & Textiles, Footwear, FMCG Manufacturing, Automotive Components, Packaging",
+        ports: "Cat Lai Port (largest container port in Vietnam), Cai Mep Deep-Water Terminal",
+        note: "Vietnam's commercial nerve center. Dense supplier network within 30km radius. Saigon Hi-Tech Park anchors electronics. Post-2025 merger incorporates Binh Duong and Ba Ria-Vung Tau.",
+        entryFit: ["Electronics","Manufacturing","Retail","Logistics","Financial Svcs"],
+        color: "#DA251D"
+    },
+    {
+        name: "Hanoi", shortName: "HAN",
+        lat: 21.0285, lng: 105.8542,
+        role: "National Capital \u00b7 Government & Technology Hub",
+        region: "North", type: "mega",
+        tags: ["hi-tech","mfg","logistics"],
+        stats: [
+            {v:"80%",    l:"Industrial Occupancy"},
+            {v:"$132",   l:"Land Rent (USD/m\u00b2)"},
+            {v:"Top 3",  l:"FDI Destination"},
+            {v:"1,586ha",l:"Hoa Lac Hi-Tech Park"}
+        ],
+        sectors: "Software & IT Services, High-Tech Manufacturing, Electronics, Semiconductors, Government Services",
+        ports: "Noi Bai International Airport (cargo hub); Hai Phong Port access via Highway 5A",
+        note: "Political and regulatory gateway. Hoa Lac Hi-Tech Park is Vietnam's first and largest hi-tech zone. Strong for companies needing government interface, IT operations, or northern supply chain access. Designated semiconductor hub under Resolution 68.",
+        entryFit: ["Electronics","Financial Svcs","Tourism"],
+        color: "#c9a000"
+    },
+    {
+        name: "Hai Phong", shortName: "HPH",
+        lat: 20.8449, lng: 106.6881,
+        role: "Northern Port City \u00b7 Heavy Industry & Export Gateway",
+        region: "North", type: "port",
+        tags: ["port","mfg","logistics"],
+        stats: [
+            {v:"80%",   l:"Industrial Occupancy"},
+            {v:"$137",  l:"Land Rent (USD/m\u00b2)"},
+            {v:"14",    l:"Industrial Parks (~6,000 ha)"},
+            {v:"Top 5", l:"SE Asia Modern Seaport"}
+        ],
+        sectors: "Electronics & Components, Shipbuilding, Textiles, Cement, Steel, Chemicals, Automotive Assembly, Food Processing",
+        ports: "Hai Phong Port - primary northern gateway; Deep C Industrial Zones with direct port access",
+        note: "Vietnam's second-largest seaport and primary northern export gateway. Strong South Korean, Japanese, and Taiwanese FDI. Post-2025 merger incorporates Hai Duong. Ideal for heavy industry and export manufacturing requiring China supply chain proximity.",
+        entryFit: ["Manufacturing","Electronics","Logistics","Construction"],
+        color: "#4a7ab5"
+    },
+    {
+        name: "Da Nang", shortName: "DAN",
+        lat: 16.0544, lng: 108.2022,
+        role: "Central Hub \u00b7 Emerging Tech & Port City",
+        region: "Central", type: "port",
+        tags: ["port","hi-tech","mfg"],
+        stats: [
+            {v:"Low",    l:"Land Cost vs. North/South"},
+            {v:"6",      l:"Industrial Parks (1,066 ha)"},
+            {v:"Desig.", l:"Semiconductor Hub (Res.136)"},
+            {v:"#1",     l:"Central Vietnam Port"}
+        ],
+        sectors: "Mechanical Engineering, Electronics, Chemicals, Shipbuilding, IT Services, Chip Design (designated), Tourism",
+        ports: "Da Nang Port - largest in Central Vietnam; Da Nang International Airport with cargo facilities",
+        note: "Government-designated semiconductor and chip design hub under Resolution 136/2024/QH15. Most competitive land costs in Vietnam. Post-2025 merger incorporates Quang Nam. Best for quality-focused brands wanting central distribution and balanced cost profile.",
+        entryFit: ["Electronics","Manufacturing","Tourism","Logistics"],
+        color: "#2d6a2d"
+    },
+    {
+        name: "Bac Ninh", shortName: "BNH",
+        lat: 21.1861, lng: 106.0763,
+        role: "Northern Electronics Powerhouse",
+        region: "North", type: "industrial",
+        tags: ["hi-tech","mfg"],
+        stats: [
+            {v:"~80%",   l:"Industrial Occupancy"},
+            {v:"Top 2",  l:"National FDI Recipient"},
+            {v:"Samsung",l:"Largest Tenant"},
+            {v:"30km",   l:"From Hanoi"}
+        ],
+        sectors: "Consumer Electronics (Samsung hub), Mobile Phones & Components, PCBs, High-Tech Manufacturing",
+        ports: "Noi Bai Airport (35min); Hai Phong Port via Highway 18",
+        note: "Home to Samsung's largest global manufacturing complex. Vietnam's most concentrated electronics production zone. Yen Phong I & II and Que Vo Industrial Parks anchor the ecosystem. Best-in-class for electronics and component manufacturing.",
+        entryFit: ["Electronics","Manufacturing"],
+        color: "#e08020"
+    },
+    {
+        name: "Binh Duong", shortName: "BDG",
+        lat: 11.3254, lng: 106.4770,
+        role: "Southern Industrial Capital \u00b7 Furniture & Manufacturing",
+        region: "South", type: "industrial",
+        tags: ["mfg","logistics"],
+        stats: [
+            {v:"89%",   l:"Industrial Occupancy"},
+            {v:"$175",  l:"Land Rent (USD/m\u00b2)"},
+            {v:"3,000+",l:"Furniture Factories"},
+            {v:"#2",    l:"National FDI (after HCMC)"}
+        ],
+        sectors: "Furniture & Wood Processing, Textiles & Garments, Electronics, Food Processing, Plastics & Rubber, Automotive Components",
+        ports: "35-min drive to HCMC Cat Lai Port; My Phuoc and VSIP parks with modern logistics",
+        note: "Southeast Asia's furniture manufacturing capital with 3,000+ factories. VSIP I, II & III (Vietnam-Singapore Industrial Parks) are flagship developments. Second highest FDI recipient nationally after HCMC.",
+        entryFit: ["Manufacturing","Retail","Logistics"],
+        color: "#9e1a14"
+    },
+    {
+        name: "Dong Nai", shortName: "DNA",
+        lat: 10.9455, lng: 107.1399,
+        role: "Southern Manufacturing & Logistics Hub",
+        region: "South", type: "industrial",
+        tags: ["mfg","logistics","port"],
+        stats: [
+            {v:"89%",    l:"Industrial Occupancy"},
+            {v:"Pioneer",l:"Industrial Park Developer"},
+            {v:"#1",     l:"Vietnam Footwear Output"},
+            {v:"Amata",  l:"Flagship Industrial Park"}
+        ],
+        sectors: "Footwear (largest output nationally), Technical Apparel, Injection-Molded Plastics, Metal Components, Automotive Parts",
+        ports: "Long Binh Port; proximity to HCMC Cat Lai; post-2025 merger expanded with Binh Phuoc",
+        note: "Pioneer of industrial park development in southern Vietnam. Produces more footwear than any other province. Amata Industrial Park is one of Vietnam's most developed industrial estates. Strong for apparel and component manufacturing ecosystems.",
+        entryFit: ["Manufacturing","Textiles","Logistics"],
+        color: "#a87d00"
+    },
+    {
+        name: "Can Tho", shortName: "CT",
+        lat: 10.0452, lng: 105.7469,
+        role: "Mekong Delta Capital \u00b7 Agriculture & Agri-Tech Hub",
+        region: "South", type: "agri",
+        tags: ["port","agri","logistics"],
+        stats: [
+            {v:"#1",     l:"Mekong Delta City"},
+            {v:"Rice",   l:"Primary Export Commodity"},
+            {v:"Growing",l:"Cold Chain Investment"},
+            {v:"Inland", l:"River Port Access"}
+        ],
+        sectors: "Rice Processing & Export, Seafood (Shrimp, Pangasius), Coffee, Fruit Processing, Agri-Tech, Cold Chain Logistics",
+        ports: "Can Tho Port (inland river port); access to Mekong river network; proximity to HCMC for ocean freight",
+        note: "Gateway to the Mekong Delta - Vietnam's rice bowl and seafood production zone. Government prioritizing infrastructure investment. Under-invested relative to potential. Strong for agri-tech, food processing, aquaculture, and sustainable supply chains.",
+        entryFit: ["Agriculture","Logistics"],
+        color: "#5a9a5a"
+    }
+];
+
+
+/* ════════════════════════════════════════════════════════════
+   CITY-LEVEL ECONOMIC DATA
+   Sources: GSO Vietnam, Vietnam Briefing 2025, CBRE/Savills,
+            General Statistics Office provincial reports 2024-2025
+   All figures are estimates/proxies from published reports.
+   GDP figures = GRDP (Gross Regional Domestic Product)
+════════════════════════════════════════════════════════════ */
+const CITY_DATA = {
+    "Ho Chi Minh City": {
+        grdp2025: 89.0,       // USD bn (GRDP est., ~17% of national GDP)
+        grdpGrowth: [6.2, 9.0, 5.8, 7.5, 8.1],  // 2021-2025
+        fdiDisbursed: [4.2, 5.0, 4.8, 5.5, 5.9, 6.2],  // 2021-2026
+        fdiRegistered: [5.8, 5.5, 7.8, 8.2, 8.0, 8.5],
+        exports2025: 54.0,    // USD bn (~11% of national)
+        gdpCapita2025: 7200,  // USD (higher than national avg)
+        topSectors: ["Manufacturing","Electronics","Retail","Logistics","Financial Svcs"],
+        sectorShares: { "Manufacturing":22, "Electronics":16, "Retail":18, "Logistics":12, "Financial Svcs":10, "Real Estate":9, "Construction":7, "Agriculture":1, "Textiles":3, "Tourism":2 }
+    },
+    "Hanoi": {
+        grdp2025: 52.0,
+        grdpGrowth: [5.8, 8.9, 6.0, 6.8, 7.6],
+        fdiDisbursed: [2.1, 2.5, 2.3, 2.8, 3.0, 3.2],
+        fdiRegistered: [3.0, 2.9, 4.2, 4.5, 4.1, 4.4],
+        exports2025: 18.0,
+        gdpCapita2025: 5800,
+        topSectors: ["Electronics","Financial Svcs","Retail","Construction","Tourism"],
+        sectorShares: { "Manufacturing":14, "Electronics":18, "Retail":14, "Logistics":8, "Financial Svcs":16, "Real Estate":10, "Construction":10, "Agriculture":2, "Textiles":2, "Tourism":6 }
+    },
+    "Hai Phong": {
+        grdp2025: 22.0,
+        grdpGrowth: [8.1, 12.3, 7.2, 9.0, 10.1],
+        fdiDisbursed: [1.8, 2.2, 2.0, 2.4, 2.6, 2.8],
+        fdiRegistered: [2.8, 2.6, 4.0, 3.8, 3.6, 3.9],
+        exports2025: 28.0,
+        gdpCapita2025: 6100,
+        topSectors: ["Manufacturing","Electronics","Logistics","Construction"],
+        sectorShares: { "Manufacturing":38, "Electronics":22, "Retail":6, "Logistics":14, "Financial Svcs":4, "Real Estate":4, "Construction":8, "Agriculture":2, "Textiles":2, "Tourism":0 }
+    },
+    "Da Nang": {
+        grdp2025: 8.5,
+        grdpGrowth: [3.5, 7.8, 5.2, 6.1, 7.0],
+        fdiDisbursed: [0.4, 0.5, 0.5, 0.6, 0.7, 0.8],
+        fdiRegistered: [0.7, 0.7, 1.1, 1.2, 1.0, 1.1],
+        exports2025: 4.2,
+        gdpCapita2025: 4800,
+        topSectors: ["Manufacturing","Electronics","Tourism","Logistics"],
+        sectorShares: { "Manufacturing":24, "Electronics":14, "Retail":10, "Logistics":10, "Financial Svcs":6, "Real Estate":8, "Construction":8, "Agriculture":4, "Textiles":4, "Tourism":12 }
+    },
+    "Bac Ninh": {
+        grdp2025: 18.0,
+        grdpGrowth: [5.2, 7.4, 4.0, 6.5, 8.0],
+        fdiDisbursed: [2.8, 3.1, 2.9, 3.2, 3.5, 3.7],
+        fdiRegistered: [4.2, 3.8, 5.5, 5.2, 4.8, 5.1],
+        exports2025: 42.0,   // very high — Samsung export hub
+        gdpCapita2025: 7800,
+        topSectors: ["Electronics","Manufacturing"],
+        sectorShares: { "Manufacturing":28, "Electronics":55, "Retail":4, "Logistics":6, "Financial Svcs":2, "Real Estate":2, "Construction":2, "Agriculture":1, "Textiles":0, "Tourism":0 }
+    },
+    "Binh Duong": {
+        grdp2025: 24.0,
+        grdpGrowth: [6.8, 8.5, 5.5, 7.8, 8.5],
+        fdiDisbursed: [2.2, 2.6, 2.4, 2.8, 3.0, 3.2],
+        fdiRegistered: [3.5, 3.2, 5.0, 4.8, 4.5, 4.8],
+        exports2025: 32.0,
+        gdpCapita2025: 7400,
+        topSectors: ["Manufacturing","Retail","Logistics"],
+        sectorShares: { "Manufacturing":45, "Electronics":12, "Retail":8, "Logistics":14, "Financial Svcs":3, "Real Estate":5, "Construction":8, "Agriculture":2, "Textiles":3, "Tourism":0 }
+    },
+    "Dong Nai": {
+        grdp2025: 18.5,
+        grdpGrowth: [5.5, 7.9, 5.0, 7.2, 8.0],
+        fdiDisbursed: [1.6, 1.9, 1.7, 2.0, 2.2, 2.4],
+        fdiRegistered: [2.6, 2.4, 3.8, 3.6, 3.4, 3.7],
+        exports2025: 24.0,
+        gdpCapita2025: 5800,
+        topSectors: ["Manufacturing","Logistics"],
+        sectorShares: { "Manufacturing":48, "Electronics":10, "Retail":7, "Logistics":15, "Financial Svcs":3, "Real Estate":4, "Construction":8, "Agriculture":3, "Textiles":2, "Tourism":0 }
+    },
+    "Can Tho": {
+        grdp2025: 7.2,
+        grdpGrowth: [4.1, 6.5, 5.8, 6.0, 6.5],
+        fdiDisbursed: [0.2, 0.2, 0.3, 0.3, 0.4, 0.4],
+        fdiRegistered: [0.3, 0.3, 0.5, 0.5, 0.4, 0.5],
+        exports2025: 5.5,
+        gdpCapita2025: 3800,
+        topSectors: ["Agriculture","Logistics"],
+        sectorShares: { "Manufacturing":12, "Electronics":2, "Retail":12, "Logistics":14, "Financial Svcs":5, "Real Estate":6, "Construction":8, "Agriculture":38, "Textiles":1, "Tourism":2 }
+    }
+};
+
+// Aggregate CITY_DATA for a set of city names
+function aggregateCities(cityNames) {
+    const cityList = cityNames
+        .map(n => CITY_DATA[n])
+        .filter(Boolean);
+    if (!cityList.length) return null;
+
+    const n = cityList.length;
+    // Aggregate growth rates by year index (0=2021 ... 4=2025)
+    const growthByYear = years.slice(0,5).map((yr, i) => {
+        const vals = cityList.map(c => c.grdpGrowth[i]).filter(v => v != null);
+        return vals.length ? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : null;
+    });
+    // FDI sums
+    const fdiDisb = years.map((_,i) => +cityList.reduce((a,c)=>a+(c.fdiDisbursed[i]||0),0).toFixed(2));
+    const fdiReg  = years.map((_,i) => +cityList.reduce((a,c)=>a+(c.fdiRegistered[i]||0),0).toFixed(2));
+    // Totals
+    const totalGRDP    = +cityList.reduce((a,c)=>a+c.grdp2025,0).toFixed(1);
+    const totalExports = +cityList.reduce((a,c)=>a+c.exports2025,0).toFixed(1);
+    const totalFDI2025 = +cityList.reduce((a,c)=>a+(c.fdiDisbursed[4]||0),0).toFixed(2);
+    const avgCapita    = Math.round(cityList.reduce((a,c)=>a+c.gdpCapita2025,0)/n);
+    const growth2025   = +(cityList.reduce((a,c)=>a+(c.grdpGrowth[4]||0),0)/n).toFixed(2);
+
+    // Weighted sector shares
+    const sectorAgg = {};
+    sectorData.forEach(sec => {
+        const weighted = cityList.map(c => (c.sectorShares[sec.name]||0));
+        sectorAgg[sec.name] = +(weighted.reduce((a,b)=>a+b,0)/n).toFixed(1);
+    });
+    // Normalise to 100%
+    const total = Object.values(sectorAgg).reduce((a,b)=>a+b,0);
+    Object.keys(sectorAgg).forEach(k => sectorAgg[k] = +(sectorAgg[k]/total*100).toFixed(1));
+
+    return { growthByYear, fdiDisb, fdiReg, totalGRDP, totalExports, totalFDI2025,
+             avgCapita, growth2025, sectorAgg, n, names: cityNames };
+}
+
+let selectedCity   = null;
+let visibleCities  = null;  // null = all visible
+
+function initMapDropdown() {
+    const list = document.getElementById('mapDDList');
+    list.innerHTML = CITIES.map(c => `
+        <div class="map-dd-item" onclick="toggleCityVisibility('${c.name}', this)">
+            <input type="checkbox" checked onchange="toggleCityVisibility('${c.name}', this.closest('.map-dd-item'))" onclick="event.stopPropagation()">
+            <span class="map-dd-dot" style="background:${c.color}"></span>
+            <span>${c.name}</span>
+        </div>`).join('');
+    syncMapDDLabel();
+}
+
+function toggleMapDD() {
+    document.getElementById('mapDDList').classList.toggle('show');
+}
+
+// Close map dropdown when clicking outside
+document.addEventListener('click', e => {
+    const wrap = document.getElementById('mapDDWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('mapDDList').classList.remove('show');
+    }
+});
+
+function toggleCityVisibility(name, rowEl) {
+    const cb = rowEl.querySelector('input[type="checkbox"]');
+    // If clicking the row (not the checkbox directly), toggle the checkbox
+    if (document.activeElement !== cb) cb.checked = !cb.checked;
+
+    // Rebuild visibleCities set from all checkboxes
+    const checked = [...document.querySelectorAll('#mapDDList input[type="checkbox"]')]
+        .filter(el => el.checked)
+        .map(el => el.closest('.map-dd-item').querySelector('span:last-child').textContent);
+
+    visibleCities = checked.length === CITIES.length ? null : checked;
+
+    // If selected city is now hidden, close panel
+    if (selectedCity && visibleCities && !visibleCities.includes(selectedCity)) {
+        selectedCity = null;
+        document.getElementById('cityPanel').classList.remove('show');
+    }
+
+    syncMapDDLabel();
+    buildCityMap();
+    updateAll();
+}
+
+function syncMapDDLabel() {
+    const lbl = document.getElementById('mapDDLabel');
+    if (!visibleCities) {
+        lbl.textContent = 'All Cities';
+    } else if (visibleCities.length === 0) {
+        lbl.textContent = 'No Cities Selected';
+    } else if (visibleCities.length <= 2) {
+        lbl.textContent = visibleCities.join(', ');
+    } else {
+        lbl.textContent = `${visibleCities.length} Cities Selected`;
+    }
+}
+
+let _leafletMap = null;
+let _leafletMarkers = [];
+
+function buildCityMap() {
+    // Init map once
+    if (!_leafletMap) {
+        _leafletMap = L.map('cityMap', {
+            center: [16.5, 107.5],
+            zoom: 6,
+            zoomControl: true,
+            scrollWheelZoom: false
+        });
+
+        // Tile layer — CartoDB Positron (clean, light, no API key needed)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            subdomains: 'abcd',
+            maxZoom: 14
+        }).addTo(_leafletMap);
+
+        // Fit to Vietnam bounds
+        _leafletMap.fitBounds([[8.3, 102.1], [23.4, 109.5]]);
+    }
+
+    // Clear existing markers
+    _leafletMarkers.forEach(m => _leafletMap.removeLayer(m));
+    _leafletMarkers = [];
+
+    // Add markers for each city
+    const citiesToShow = visibleCities ? CITIES.filter(c => visibleCities.includes(c.name)) : CITIES;
+    citiesToShow.forEach(city => {
+        const isSelected = selectedCity === city.name;
+        const radius = city.type==='mega' ? 14 : city.type==='port' ? 11 : 9;
+
+        // Circle marker
+        const marker = L.circleMarker([city.lat, city.lng], {
+            radius: isSelected ? radius + 4 : radius,
+            fillColor: city.color,
+            color: isSelected ? '#1e1208' : '#fff',
+            weight: isSelected ? 3 : 2,
+            opacity: 1,
+            fillOpacity: isSelected ? 1 : 0.75
+        }).addTo(_leafletMap);
+
+        // Label
+        const labelOffset = [0, -(radius + 6)];
+        const label = L.marker([city.lat, city.lng], {
+            icon: L.divIcon({
+                className: 'city-marker-label',
+                html: `<span style="color:${isSelected ? city.color : '#2a1a0a'};font-weight:${isSelected?'700':'600'};font-size:${isSelected?'12px':'11px'};text-shadow:1px 1px 2px rgba(255,255,255,0.9),-1px -1px 2px rgba(255,255,255,0.9)">${city.name}</span>`,
+                iconAnchor: [-4, 20]
+            })
+        }).addTo(_leafletMap);
+
+        // Click handler
+        const handleClick = () => {
+            if (selectedCity === city.name) {
+                closeCity();
+            } else {
+                selectedCity = city.name;
+                buildCityMap();
+                showCityPanel(city.name);
+            }
+        };
+
+        marker.on('click', handleClick);
+        label.on('click', handleClick);
+
+        // Hover tooltip
+        marker.bindTooltip(
+            `<b>${city.name}</b><br><i style="color:#c9a000">${city.role}</i><br><span style="font-size:10px">${city.sectors.split(',').slice(0,2).join(', ')}...</span><br><span style="font-size:9px;color:#c9a000">Click to explore ›</span>`,
+            { direction: 'top', offset: [0, -radius], opacity: 1 }
+        );
+
+        marker.getElement && marker.getElement()?.style.setProperty('cursor','pointer');
+
+        _leafletMarkers.push(marker, label);
+    });
+}
+
+function showCityPanel(name) {
+    const city = CITIES.find(c=>c.name===name);
+    if (!city) return;
+
+    document.getElementById('cpName').textContent = city.name;
+    document.getElementById('cpRole').textContent = city.role;
+
+    document.getElementById('cpStats').innerHTML = city.stats.map(s=>
+        `<div class="city-stat"><div class="cv">${s.v}</div><div class="cl">${s.l}</div></div>`
+    ).join('');
+
+    const tagMap = { port:'tag-port', 'hi-tech':'tag-hi-tech', mfg:'tag-mfg', logistics:'tag-logistics', agri:'tag-agri' };
+    const tagLabels = { port:'Port Access', 'hi-tech':'Hi-Tech', mfg:'Manufacturing', logistics:'Logistics', agri:'Agriculture' };
+    const tagsHTML = city.tags.map(t=>`<span class="city-tag ${tagMap[t]}">${tagLabels[t]}</span>`).join('');
+
+    document.getElementById('cpSectors').innerHTML = `
+        <div style="margin-bottom:8px">${tagsHTML}</div>
+        <div><strong>Key Industries:</strong> ${city.sectors}</div>
+        <div style="margin-top:6px"><strong>Port / Logistics:</strong> ${city.ports}</div>
+        <div style="margin-top:6px;padding:8px;background:rgba(218,37,29,0.05);border-left:3px solid var(--flag-red);border-radius:2px;font-size:10px;color:var(--ink-mid);">${city.note}</div>
+        <div style="margin-top:8px"><strong>Relevant to Sectors:</strong> ${city.entryFit.map(s=>`<span style="display:inline-block;padding:1px 7px;background:rgba(201,160,0,0.12);border-radius:2px;font-size:9px;color:#7a5800;margin:2px;">${s}</span>`).join('')}</div>
+    `;
+
+    document.getElementById('cityPanel').classList.add('show');
+}
+
+function closeCity() {
+    selectedCity = null;
+    document.getElementById('cityPanel').classList.remove('show');
+    buildCityMap();
+}
+
+/* ════════════════════════════════════════════════════════════
+   BOOT
+════════════════════════════════════════════════════════════ */
+initFilters();
+initMapDropdown();
+buildCityMap();
+updateAll();
+fetchIMF();
+</script>
+</body>
+</html>
